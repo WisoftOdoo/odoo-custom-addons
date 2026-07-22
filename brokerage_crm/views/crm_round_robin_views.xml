@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- =========================================================
+         ROUND ROBIN LIST
+         ========================================================= -->
+
+    <record id="view_brokerage_crm_round_robin_list"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.round.robin.list</field>
+        <field name="model">brokerage.crm.round.robin</field>
+        <field name="arch" type="xml">
+            <list string="Round Robin Configurations"
+                  default_order="sequence asc, name asc"
+                  decoration-muted="not active">
+
+                <field name="sequence"
+                       widget="handle"/>
+                <field name="name"/>
+                <field name="team_id"/>
+                <field name="member_ids"
+                       widget="many2many_tags"/>
+                <field name="next_index"/>
+                <field name="last_user_id"/>
+                <field name="last_assignment_datetime"/>
+                <field name="assignment_count"/>
+                <field name="cross_team_next_index" optional="hide"/>
+                <field name="cross_team_assignment_count" optional="hide"/>
+                <field name="not_interested_next_index" optional="hide"/>
+                <field name="not_interested_assignment_count" optional="hide"/>
+                <field name="active"/>
+
+            </list>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         ROUND ROBIN FORM
+         ========================================================= -->
+
+    <record id="view_brokerage_crm_round_robin_form"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.round.robin.form</field>
+        <field name="model">brokerage.crm.round.robin</field>
+        <field name="arch" type="xml">
+            <form string="Round Robin Configuration">
+
+                <header>
+                    <button name="action_reset_rotation"
+                            type="object"
+                            string="Reset Rotation"
+                            class="btn-secondary"
+                            confirm="Reset the Round Robin position?"/>
+                </header>
+
+                <sheet>
+
+                    <widget name="web_ribbon"
+                            title="Inactive"
+                            bg_color="text-bg-danger"
+                            invisible="active"/>
+
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name"
+                                   placeholder="Configuration name..."/>
+                        </h1>
+                    </div>
+
+                    <group>
+                        <group string="Configuration">
+                            <field name="team_id"
+                                   options="{'no_create': True}"/>
+                            <field name="sequence"/>
+                            <field name="active"/>
+                        </group>
+
+                        <group string="Rotation State">
+                            <field name="next_index"
+                                   readonly="1"/>
+                            <field name="last_user_id"
+                                   readonly="1"/>
+                            <field name="last_assignment_datetime"
+                                   readonly="1"/>
+                            <field name="assignment_count"
+                                   readonly="1"/>
+                        </group>
+                        <group string="Independent Cross-team State">
+                            <field name="cross_team_next_index"
+                                   readonly="1"/>
+                            <field name="cross_team_assignment_count"
+                                   readonly="1"/>
+                            <field name="last_cross_team_user_id"
+                                   readonly="1"/>
+                            <field name="last_cross_team_assignment_datetime"
+                                   readonly="1"/>
+                        </group>
+                        <group string="Independent Not Interested State">
+                            <field name="not_interested_next_index"
+                                   readonly="1"/>
+                            <field name="not_interested_assignment_count"
+                                   readonly="1"/>
+                            <field name="last_not_interested_user_id"
+                                   readonly="1"/>
+                            <field name="last_not_interested_assignment_datetime"
+                                   readonly="1"/>
+                        </group>
+                    </group>
+
+                    <group string="Eligible Salespeople">
+                        <field name="member_ids"
+                               widget="many2many_tags"
+                               options="{
+                                   'no_create': True,
+                                   'no_create_edit': True
+                               }"/>
+                    </group>
+
+                    <div class="alert alert-info" role="alert">
+                        Salespeople are selected in the configured order.
+                        Inactive or unavailable users are skipped.
+                    </div>
+
+                </sheet>
+
+            </form>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         ROUND ROBIN SEARCH
+         ========================================================= -->
+
+    <record id="view_brokerage_crm_round_robin_search"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.round.robin.search</field>
+        <field name="model">brokerage.crm.round.robin</field>
+        <field name="arch" type="xml">
+            <search string="Search Round Robin Configurations">
+
+                <field name="name"/>
+                <field name="team_id"/>
+                <field name="member_ids"/>
+                <field name="last_user_id"/>
+
+                <separator/>
+
+                <filter name="active_rules"
+                        string="Active"
+                        domain="[('active', '=', True)]"/>
+
+                <filter name="inactive_rules"
+                        string="Inactive"
+                        domain="[('active', '=', False)]"/>
+
+                <group>
+                    <filter name="group_team"
+                            string="Sales Team"
+                            context="{'group_by': 'team_id'}"/>
+
+                    <filter name="group_active"
+                            string="Active"
+                            context="{'group_by': 'active'}"/>
+                </group>
+
+            </search>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         ROUND ROBIN ACTION
+         ========================================================= -->
+
+    <record id="action_brokerage_crm_round_robin"
+            model="ir.actions.act_window">
+        <field name="name">Round Robin</field>
+        <field name="res_model">brokerage.crm.round.robin</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id"
+               ref="view_brokerage_crm_round_robin_search"/>
+        <field name="context">{'search_default_active_rules': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Configure strict Round Robin assignment.
+            </p>
+            <p>
+                Create one configuration for each applicable sales team.
+            </p>
+        </field>
+    </record>
+
+</odoo>

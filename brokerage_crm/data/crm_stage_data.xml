@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo noupdate="1">
+
+    <record id="crm_stage_not_interested" model="crm.stage">
+        <field name="name">Not Interested</field>
+        <field name="sequence">90</field>
+        <field name="brokerage_code">not_interested</field>
+        <field name="fold">False</field>
+    </record>
+
+</odoo>

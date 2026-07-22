@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- =========================================================
+         CONTACT ATTEMPT WIZARD
+         ========================================================= -->
+
+    <record id="view_crm_contact_attempt_wizard_form" model="ir.ui.view">
+        <field name="name">brokerage.crm.contact.attempt.wizard.form</field>
+        <field name="model">brokerage.crm.contact.attempt.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Record Contact Attempt">
+                <group>
+                    <field name="lead_id" readonly="1"/>
+                    <field name="attempt_datetime"/>
+                    <field name="method"/>
+                    <field name="status_id" options="{'no_create': True}"/>
+                    <field name="remarks"
+                           placeholder="Enter the call or contact result..."/>
+                </group>
+
+                <group string="Next Activity">
+                    <field name="next_activity_type_id"
+                           options="{'no_create': True}"/>
+                    <field name="next_activity_date"/>
+                </group>
+
+                <footer>
+                    <button name="action_confirm"
+                            type="object"
+                            string="Record Attempt"
+                            class="btn-primary"/>
+
+                    <button string="Cancel"
+                            special="cancel"
+                            class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_crm_contact_attempt_wizard"
+            model="ir.actions.act_window">
+        <field name="name">Record Contact Attempt</field>
+        <field name="res_model">brokerage.crm.contact.attempt.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_crm_contact_attempt_wizard_form"/>
+        <field name="target">new</field>
+        <field name="context">{'default_lead_id': active_id}</field>
+    </record>
+
+    <!-- =========================================================
+         SCHEDULE MEETING WIZARD
+         ========================================================= -->
+
+    <record id="view_crm_schedule_meeting_wizard_form"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.schedule.meeting.wizard.form</field>
+        <field name="model">brokerage.crm.schedule.meeting.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Schedule Meeting">
+
+                <group>
+                    <group string="Meeting">
+                        <field name="lead_id" readonly="1"/>
+                        <field name="name"/>
+                        <field name="meeting_type"/>
+                        <field name="scheduled_start"/>
+                        <field name="scheduled_end"/>
+                    </group>
+
+                    <group string="Location">
+                        <field name="location"
+                               invisible="meeting_type in ['zoom', 'google_meet', 'phone']"/>
+
+                        <field name="meeting_link"
+                               widget="url"
+                               invisible="meeting_type not in ['zoom', 'google_meet']"/>
+                    </group>
+                </group>
+
+                <group string="Developer and Project">
+                    <group>
+                        <field name="developer_id"/>
+                        <field name="project_id"
+                               context="{'default_developer_id': developer_id}"/>
+                    </group>
+
+                    <group>
+                        <field name="relationship_manager_name"/>
+                    </group>
+                </group>
+
+                <footer>
+                    <button name="action_confirm"
+                            type="object"
+                            string="Schedule"
+                            class="btn-primary"/>
+
+                    <button string="Cancel"
+                            special="cancel"
+                            class="btn-secondary"/>
+                </footer>
+
+            </form>
+        </field>
+    </record>
+
+    <record id="action_crm_schedule_meeting_wizard"
+            model="ir.actions.act_window">
+        <field name="name">Schedule Meeting</field>
+        <field name="res_model">brokerage.crm.schedule.meeting.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_crm_schedule_meeting_wizard_form"/>
+        <field name="target">new</field>
+        <field name="context">{'default_lead_id': active_id}</field>
+    </record>
+
+    <!-- =========================================================
+         COMPLETE MEETING WIZARD
+         ========================================================= -->
+
+    <record id="view_crm_complete_meeting_wizard_form"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.complete.meeting.wizard.form</field>
+        <field name="model">brokerage.crm.complete.meeting.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Complete Meeting">
+
+                <group>
+                    <group string="Meeting">
+                        <field name="lead_id" readonly="1"/>
+                        <field name="meeting_id" options="{'no_create': True}"/>
+                        <field name="actual_start"/>
+                        <field name="actual_end"/>
+                        <field name="outcome"/>
+                    </group>
+
+                    <group string="Developer and Project">
+                        <field name="developer_id"/>
+                        <field name="project_id"
+                               context="{'default_developer_id': developer_id}"/>
+                    </group>
+                </group>
+
+                <group string="Meeting Details">
+                    <field name="customer_requirements"
+                           placeholder="Customer requirements discussed..."/>
+
+                    <field name="agent_remarks"
+                           placeholder="Meeting outcome and agent remarks..."/>
+                </group>
+
+                <group string="Next Follow-up">
+                    <field name="next_action"/>
+                    <field name="next_follow_up_date"/>
+                    <field name="next_activity_type_id"
+                           options="{'no_create': True}"/>
+                </group>
+
+                <footer>
+                    <button name="action_confirm"
+                            type="object"
+                            string="Complete Meeting"
+                            class="btn-primary"/>
+
+                    <button string="Cancel"
+                            special="cancel"
+                            class="btn-secondary"/>
+                </footer>
+
+            </form>
+        </field>
+    </record>
+
+    <record id="action_crm_complete_meeting_wizard"
+            model="ir.actions.act_window">
+        <field name="name">Complete Meeting</field>
+        <field name="res_model">brokerage.crm.complete.meeting.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_crm_complete_meeting_wizard_form"/>
+        <field name="target">new</field>
+        <field name="context">{'default_lead_id': active_id}</field>
+    </record>
+
+    <!-- =========================================================
+         REASSIGNMENT WIZARD
+         ========================================================= -->
+
+    <record id="view_crm_reassign_wizard_form"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.reassign.wizard.form</field>
+        <field name="model">brokerage.crm.reassign.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reassign Opportunity">
+
+                <group>
+                    <field name="lead_id" readonly="1"/>
+
+                    <field name="new_team_id"
+                           options="{'no_create': True}"/>
+
+                    <field name="new_user_id"
+                           options="{'no_create': True}"/>
+
+                    <field name="reason"
+                           placeholder="Explain why this opportunity is being reassigned..."/>
+                </group>
+
+                <footer>
+                    <button name="action_confirm"
+                            type="object"
+                            string="Reassign"
+                            class="btn-primary"/>
+
+                    <button string="Cancel"
+                            special="cancel"
+                            class="btn-secondary"/>
+                </footer>
+
+            </form>
+        </field>
+    </record>
+
+    <record id="action_crm_reassign_wizard"
+            model="ir.actions.act_window">
+        <field name="name">Reassign Opportunity</field>
+        <field name="res_model">brokerage.crm.reassign.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_crm_reassign_wizard_form"/>
+        <field name="target">new</field>
+        <field name="context">{'default_lead_id': active_id}</field>
+    </record>
+
+</odoo>

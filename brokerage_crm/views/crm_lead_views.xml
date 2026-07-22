@@ -1,0 +1,416 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- =========================================================
+         CRM LEAD FORM EXTENSION
+         ========================================================= -->
+
+    <record id="view_crm_lead_form_brokerage"
+            model="ir.ui.view">
+
+        <field name="name">crm.lead.form.brokerage</field>
+        <field name="model">crm.lead</field>
+
+        <field name="inherit_id"
+               ref="crm.crm_lead_view_form"/>
+
+        <field name="arch" type="xml">
+
+            <!-- =================================================
+                 HEADER BUTTONS
+                 ================================================= -->
+
+            <xpath expr="//form/header" position="inside">
+
+                <button name="%(brokerage_crm.action_crm_contact_attempt_wizard)d"
+                        type="action"
+                        string="Record Contact Attempt"
+                        invisible="not id or not user_id"/>
+
+                <button name="%(brokerage_crm.action_crm_schedule_meeting_wizard)d"
+                        type="action"
+                        string="Schedule Meeting"
+                        invisible="not id"/>
+
+                <button name="%(brokerage_crm.action_crm_complete_meeting_wizard)d"
+                        type="action"
+                        string="Complete Meeting"
+                        invisible="not id or meeting_count == 0"/>
+
+                <button name="%(brokerage_crm.action_crm_reassign_wizard)d"
+                        type="action"
+                        string="Reassign"
+                        groups="brokerage_crm.group_brokerage_team_leader"
+                        invisible="not id"/>
+
+            </xpath>
+
+            <!-- =================================================
+                 ADD CLASSIFICATION NEAR SALESPERSON
+                 ================================================= -->
+
+            <xpath expr="//field[@name='user_id']" position="after">
+
+                <field name="assignment_type"/>
+
+                <field name="external_lead_id" readonly="1"/>
+
+                <field name="lead_status_id"
+                       options="{'no_create': True}"/>
+
+                <field name="lead_quality_id"
+                       options="{'no_create': True}"/>
+
+            </xpath>
+
+            <!-- =================================================
+                 ADD SOURCE CATEGORY
+                 ================================================= -->
+
+            <xpath expr="//field[@name='source_id']" position="after">
+                <field name="source_category"
+                       readonly="1"/>
+            </xpath>
+
+            <!-- =================================================
+                 SMART BUTTONS
+                 ================================================= -->
+
+            <xpath expr="//div[@name='button_box']" position="inside">
+
+                <button name="action_view_contact_attempts"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-phone"
+                        invisible="contact_attempt_count == 0">
+
+                    <field name="contact_attempt_count"
+                           widget="statinfo"
+                           string="Contact Attempts"/>
+
+                </button>
+
+                <button name="action_view_brokerage_meetings"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-calendar"
+                        invisible="meeting_count == 0">
+
+                    <field name="meeting_count"
+                           widget="statinfo"
+                           string="Meetings"/>
+
+                </button>
+
+                <button name="action_view_assignment_history"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-exchange"
+                        invisible="assignment_history_count == 0">
+
+                    <field name="assignment_history_count"
+                           widget="statinfo"
+                           string="Assignments"/>
+
+                </button>
+
+            </xpath>
+
+            <!-- =================================================
+                 NOTEBOOK PAGES
+                 ================================================= -->
+
+            <xpath expr="//notebook" position="inside">
+
+                <!-- CUSTOMER REQUIREMENT -->
+
+                <page string="Customer Requirement"
+                      name="brokerage_customer_requirement">
+
+                    <group>
+                        <group string="Requirement">
+                            <field name="requirement_type"/>
+                            <field name="preferred_location"/>
+                            <field name="property_category"/>
+                            <field name="unit_preference"/>
+                            <field name="bedroom_count"/>
+                        </group>
+
+                        <group string="Buyer Information">
+                            <field name="purchase_timeline"/>
+                            <field name="buyer_type"/>
+                            <field name="purchase_mode"/>
+                        </group>
+                    </group>
+
+                    <group string="Budget">
+                        <group>
+                            <field name="budget_from"/>
+                            <field name="budget_to"/>
+                        </group>
+                    </group>
+
+                    <group string="Preferred Developer and Project">
+                        <group>
+                            <field name="preferred_developer_id"/>
+                            <field name="preferred_project_id"
+                                   context="{'default_developer_id': preferred_developer_id}"/>
+                        </group>
+                    </group>
+
+                    <group string="Requirement Notes">
+                        <field name="customer_requirement_notes"
+                               placeholder="Enter the customer's requirements and preferences..."/>
+                    </group>
+
+                </page>
+
+                <!-- CONTACT ATTEMPTS -->
+
+                <page string="Contact Attempts"
+                      name="brokerage_contact_attempts">
+
+                    <field name="contact_attempt_ids"
+                           readonly="1">
+
+                        <list create="false"
+                              edit="false"
+                              delete="false"
+                              default_order="attempt_datetime desc">
+
+                            <field name="attempt_datetime"/>
+                            <field name="method"/>
+                            <field name="status_id"/>
+                            <field name="successful_contact"/>
+                            <field name="user_id"/>
+                            <field name="remarks"/>
+                            <field name="next_activity_type_id"/>
+                            <field name="next_activity_date"/>
+
+                        </list>
+
+                    </field>
+
+                </page>
+
+                <!-- MEETINGS -->
+
+                <page string="Meetings"
+                      name="brokerage_meetings">
+
+                    <field name="brokerage_meeting_ids"
+                           readonly="1">
+
+                        <list create="false"
+                              edit="false"
+                              delete="false"
+                              default_order="scheduled_start desc">
+
+                            <field name="name"/>
+                            <field name="meeting_type"/>
+                            <field name="scheduled_start"/>
+                            <field name="scheduled_end"/>
+                            <field name="state"
+                                   widget="badge"/>
+                            <field name="developer_id"/>
+                            <field name="project_id"/>
+                            <field name="outcome"/>
+                            <field name="next_follow_up_date"/>
+
+                        </list>
+
+                    </field>
+
+                </page>
+
+                <!-- FORECAST / HOT -->
+
+                <page string="Forecast / Hot"
+                      name="brokerage_forecast_hot">
+
+                    <group string="Forecast Information">
+                        <group>
+                            <field name="expected_revenue"/>
+                            <field name="probability"/>
+                            <field name="date_deadline"/>
+                        </group>
+
+                        <group>
+                            <field name="forecast_remarks"
+                                   placeholder="Enter forecast justification and comments..."/>
+                        </group>
+                    </group>
+
+                    <group string="Hot / Booking Expected">
+                        <group>
+                            <field name="final_developer_id"/>
+                            <field name="final_project_id"
+                                   context="{'default_developer_id': final_developer_id}"/>
+                            <field name="final_unit_type"/>
+                        </group>
+
+                        <group>
+                            <field name="estimated_property_value"/>
+                            <field name="expected_booking_date"/>
+                        </group>
+                    </group>
+
+                </page>
+
+                <!-- SLA AND ASSIGNMENT -->
+
+                <page string="SLA and Assignment"
+                      name="brokerage_sla_assignment">
+
+                    <group>
+
+                        <group string="Assignment">
+                            <field name="assigned_datetime"
+                                   readonly="1"/>
+
+                            <field name="assignment_type"
+                                   readonly="1"/>
+
+                        </group>
+
+                        <group string="Contact Tracking">
+                            <field name="first_contact_datetime"
+                                   readonly="1"/>
+
+                            <field name="last_status_update"
+                                   readonly="1"/>
+
+                            <field name="last_meaningful_update"
+                                   readonly="1"/>
+                        </group>
+
+                    </group>
+
+                </page>
+
+                <!-- ASSIGNMENT HISTORY -->
+
+                <page string="Assignment History"
+                      name="brokerage_assignment_history">
+
+                    <field name="assignment_history_ids"
+                           readonly="1">
+
+                        <list create="false"
+                              edit="false"
+                              delete="false"
+                              default_order="assigned_datetime desc">
+
+                            <field name="assigned_datetime"/>
+                            <field name="assignment_type"/>
+                            <field name="source_id"/>
+                            <field name="previous_team_id"/>
+                            <field name="previous_user_id"/>
+                            <field name="new_team_id"/>
+                            <field name="new_user_id"/>
+                            <field name="assigned_by_id"/>
+                            <field name="round_robin_position"/>
+                            <field name="reason"/>
+
+                        </list>
+
+                    </field>
+
+                </page>
+
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- =========================================================
+         CRM SEARCH VIEW EXTENSION
+         ========================================================= -->
+    <record id="view_crm_lead_search_brokerage"
+            model="ir.ui.view">
+
+        <field name="name">crm.lead.search.brokerage</field>
+        <field name="model">crm.lead</field>
+
+        <field name="inherit_id"
+            ref="crm.view_crm_case_leads_filter"/>
+
+        <field name="arch" type="xml">
+
+            <xpath expr="//search" position="inside">
+
+                <field name="lead_status_id"/>
+                <field name="lead_quality_id"/>
+                <field name="source_category"/>
+                <field name="preferred_developer_id"/>
+                <field name="preferred_project_id"/>
+                <field name="final_developer_id"/>
+                <field name="final_project_id"/>
+
+                <separator/>
+
+                <filter name="brokerage_marketing_leads"
+                        string="Marketing Leads"
+                        domain="[('source_category', '=', 'marketing')]"/>
+
+                <filter name="brokerage_manual_leads"
+                        string="Manual Leads"
+                        domain="[('source_category', '=', 'manual')]"/>
+
+                <filter name="brokerage_referral_leads"
+                        string="Referral Leads"
+                        domain="[('source_category', '=', 'referral')]"/>
+
+                <filter name="brokerage_bulk_leads"
+                        string="Bulk Leads"
+                        domain="[('source_category', '=', 'bulk')]"/>
+
+                <filter name="brokerage_contacted"
+                        string="Contacted"
+                        domain="[('first_contact_datetime', '!=', False)]"/>
+
+                <filter name="brokerage_hot"
+                        string="Hot Leads"
+                        domain="[('lead_quality_id.code', '=', 'hot')]"/>
+
+                <group>
+                    <filter name="group_source_category"
+                            string="Source Category"
+                            context="{'group_by': 'source_category'}"/>
+
+                    <filter name="group_lead_status"
+                            string="Lead Status"
+                            context="{'group_by': 'lead_status_id'}"/>
+
+                    <filter name="group_lead_quality"
+                            string="Lead Quality"
+                            context="{'group_by': 'lead_quality_id'}"/>
+
+                    <filter name="group_assignment_type"
+                            string="Assignment Type"
+                            context="{'group_by': 'assignment_type'}"/>
+
+                    <filter name="group_preferred_developer"
+                            string="Preferred Developer"
+                            context="{'group_by': 'preferred_developer_id'}"/>
+
+                    <filter name="group_preferred_project"
+                            string="Preferred Project"
+                            context="{'group_by': 'preferred_project_id'}"/>
+
+                    <filter name="group_final_developer"
+                            string="Final Developer"
+                            context="{'group_by': 'final_developer_id'}"/>
+
+                    <filter name="group_final_project"
+                            string="Final Project"
+                            context="{'group_by': 'final_project_id'}"/>
+                </group>
+
+            </xpath>
+
+        </field>
+    </record>
+
+
+</odoo>

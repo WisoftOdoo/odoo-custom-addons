@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo noupdate="1">
+
+    <record id="lead_source_website" model="utm.source">
+        <field name="name">Website</field>
+        <field name="brokerage_category">marketing</field>
+        <field name="round_robin_applicable">True</field>
+        <field name="sla_applicable">True</field>
+        <field name="penalty_applicable">True</field>
+        <field name="is_bulk_source">False</field>
+        <field name="require_direct_assignment">False</field>
+    </record>
+
+    <record id="lead_source_facebook" model="utm.source">
+        <field name="name">Facebook</field>
+        <field name="brokerage_category">marketing</field>
+        <field name="round_robin_applicable">True</field>
+        <field name="sla_applicable">True</field>
+        <field name="penalty_applicable">True</field>
+        <field name="is_bulk_source">False</field>
+        <field name="require_direct_assignment">False</field>
+    </record>
+
+    <record id="lead_source_instagram" model="utm.source">
+        <field name="name">Instagram</field>
+        <field name="brokerage_category">marketing</field>
+        <field name="round_robin_applicable">True</field>
+        <field name="sla_applicable">True</field>
+        <field name="penalty_applicable">True</field>
+        <field name="is_bulk_source">False</field>
+        <field name="require_direct_assignment">False</field>
+    </record>
+
+    <record id="lead_source_meta" model="utm.source">
+        <field name="name">Meta</field>
+        <field name="brokerage_category">marketing</field>
+        <field name="round_robin_applicable">True</field>
+        <field name="sla_applicable">True</field>
+        <field name="penalty_applicable">True</field>
+        <field name="is_bulk_source">False</field>
+        <field name="require_direct_assignment">False</field>
+    </record>
+
+    <record id="lead_source_google" model="utm.source">
+        <field name="name">Google</field>
+        <field name="brokerage_category">marketing</field>
+        <field name="round_robin_applicable">True</field>
+        <field name="sla_applicable">True</field>
+        <field name="penalty_applicable">True</field>
+        <field name="is_bulk_source">False</field>
+        <field name="require_direct_assignment">False</field>
+    </record>
+
+    <record id="lead_source_manual" model="utm.source">
+        <field name="name">Manual Entry</field>
+        <field name="brokerage_category">manual</field>
+        <field name="round_robin_applicable">False</field>
+        <field name="sla_applicable">True</field>
+        <field name="penalty_applicable">True</field>
+        <field name="is_bulk_source">False</field>
+        <field name="require_direct_assignment">True</field>
+    </record>
+
+    <record id="lead_source_referral" model="utm.source">
+        <field name="name">Referral</field>
+        <field name="brokerage_category">referral</field>
+        <field name="round_robin_applicable">False</field>
+        <field name="sla_applicable">True</field>
+        <field name="penalty_applicable">True</field>
+        <field name="is_bulk_source">False</field>
+        <field name="require_direct_assignment">True</field>
+    </record>
+
+    <record id="lead_source_walk_in" model="utm.source">
+        <field name="name">Walk-in</field>
+        <field name="brokerage_category">walk_in</field>
+        <field name="round_robin_applicable">False</field>
+        <field name="sla_applicable">True</field>
+        <field name="penalty_applicable">True</field>
+        <field name="is_bulk_source">False</field>
+        <field name="require_direct_assignment">True</field>
+    </record>
+
+    <record id="lead_source_developer_referral" model="utm.source">
+        <field name="name">Developer Referral</field>
+        <field name="brokerage_category">developer</field>
+        <field name="round_robin_applicable">False</field>
+        <field name="sla_applicable">True</field>
+        <field name="penalty_applicable">True</field>
+        <field name="is_bulk_source">False</field>
+        <field name="require_direct_assignment">True</field>
+    </record>
+
+    <record id="lead_source_bulk_upload" model="utm.source">
+        <field name="name">Bulk Upload</field>
+        <field name="brokerage_category">bulk</field>
+        <field name="round_robin_applicable">False</field>
+        <field name="sla_applicable">False</field>
+        <field name="penalty_applicable">False</field>
+        <field name="is_bulk_source">True</field>
+        <field name="require_direct_assignment">False</field>
+    </record>
+
+    <record id="lead_source_excel_import" model="utm.source">
+        <field name="name">Excel Import</field>
+        <field name="brokerage_category">bulk</field>
+        <field name="round_robin_applicable">False</field>
+        <field name="sla_applicable">False</field>
+        <field name="penalty_applicable">False</field>
+        <field name="is_bulk_source">True</field>
+        <field name="require_direct_assignment">False</field>
+    </record>
+
+</odoo>

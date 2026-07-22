@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <record id="res_config_settings_view_form_brokerage_ultramsg"
+            model="ir.ui.view">
+        <field name="name">res.config.settings.brokerage.ultramsg</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="crm.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//app[@name='crm']" position="inside">
+                <block title="Brokerage Round Robin SLA"
+                       name="brokerage_round_robin_sla_settings"
+                       groups="base.group_system,brokerage_crm.group_brokerage_sales_manager">
+                    <setting id="brokerage_sla_enabled"
+                             string="Round Robin First-Contact SLA"
+                             help="Apply reminders, manager escalation, and cross-team reassignment only to leads assigned through Round Robin.">
+                        <field name="brokerage_sla_enabled"/>
+                        <div class="content-group mt16"
+                             invisible="not brokerage_sla_enabled">
+                            <div class="row mt8">
+                                <label for="brokerage_sla_reminder_1_minutes"
+                                       class="col-lg-5 o_light_label"/>
+                                <field name="brokerage_sla_reminder_1_minutes"
+                                       class="oe_inline"/>
+                                <span class="ms-2">minutes</span>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_sla_reminder_2_minutes"
+                                       class="col-lg-5 o_light_label"/>
+                                <field name="brokerage_sla_reminder_2_minutes"
+                                       class="oe_inline"/>
+                                <span class="ms-2">minutes</span>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_sla_reminder_3_minutes"
+                                       class="col-lg-5 o_light_label"/>
+                                <field name="brokerage_sla_reminder_3_minutes"
+                                       class="oe_inline"/>
+                                <span class="ms-2">minutes</span>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_sla_escalation_minutes"
+                                       class="col-lg-5 o_light_label"/>
+                                <field name="brokerage_sla_escalation_minutes"
+                                       class="oe_inline"/>
+                                <span class="ms-2">minutes</span>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_sla_reassignment_minutes"
+                                       class="col-lg-5 o_light_label"/>
+                                <field name="brokerage_sla_reassignment_minutes"
+                                       class="oe_inline"/>
+                                <span class="ms-2">minutes</span>
+                            </div>
+                            <div class="text-muted mt8">
+                                Times are measured from the Round Robin assignment.
+                                Enter 0 to disable an individual step. Enabled steps
+                                must be in chronological order.
+                            </div>
+                        </div>
+                    </setting>
+                </block>
+                <block title="Brokerage WhatsApp Notifications"
+                       name="brokerage_ultramsg_settings"
+                       groups="base.group_system">
+                    <setting id="brokerage_ultramsg_enabled"
+                             string="UltraMsg WhatsApp"
+                             help="Send queued lead assignment and SLA notifications through UltraMsg.">
+                        <field name="brokerage_ultramsg_enabled"/>
+                        <div class="content-group mt16"
+                             invisible="not brokerage_ultramsg_enabled">
+                            <div class="row mt8">
+                                <label for="brokerage_ultramsg_instance_id"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_ultramsg_instance_id"
+                                       class="oe_inline"
+                                       placeholder="instance123456"
+                                       required="brokerage_ultramsg_enabled"/>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_ultramsg_token"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_ultramsg_token"
+                                       class="oe_inline"
+                                       password="True"
+                                       required="brokerage_ultramsg_enabled"/>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_ultramsg_default_country_code"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_ultramsg_default_country_code"
+                                       class="oe_inline"
+                                       placeholder="971"
+                                       required="brokerage_ultramsg_enabled"/>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_ultramsg_connect_timeout"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_ultramsg_connect_timeout"
+                                       class="oe_inline"
+                                       required="brokerage_ultramsg_enabled"/>
+                                <span class="ms-2">seconds</span>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_ultramsg_read_timeout"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_ultramsg_read_timeout"
+                                       class="oe_inline"
+                                       required="brokerage_ultramsg_enabled"/>
+                                <span class="ms-2">seconds</span>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_ultramsg_max_attempts"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_ultramsg_max_attempts"
+                                       class="oe_inline"
+                                       required="brokerage_ultramsg_enabled"/>
+                            </div>
+                            <div class="text-muted mt8">
+                                Recipient numbers are read from each Odoo user's
+                                Contact: Mobile first, then Phone. Missing or invalid
+                                numbers are skipped and shown in the delivery log.
+                            </div>
+                        </div>
+                    </setting>
+                </block>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

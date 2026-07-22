@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- =========================================================
+         SLA RULE LIST
+         ========================================================= -->
+
+    <record id="view_brokerage_crm_sla_rule_list"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.sla.rule.list</field>
+        <field name="model">brokerage.crm.sla.rule</field>
+        <field name="arch" type="xml">
+            <list string="SLA Rules"
+                  default_order="sequence asc, name asc"
+                  decoration-muted="not active">
+
+                <field name="sequence"
+                       widget="handle"/>
+                <field name="name"/>
+                <field name="rule_type"/>
+                <field name="source_category"/>
+                <field name="team_id"/>
+                <field name="quality_id"/>
+                <field name="duration_minutes"/>
+                <field name="escalation_minutes"/>
+                <field name="reassignment_minutes"/>
+                <field name="penalty_applicable"/>
+                <field name="active"/>
+
+            </list>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         SLA RULE FORM
+         ========================================================= -->
+
+    <record id="view_brokerage_crm_sla_rule_form"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.sla.rule.form</field>
+        <field name="model">brokerage.crm.sla.rule</field>
+        <field name="arch" type="xml">
+            <form string="SLA Rule">
+
+                <sheet>
+
+                    <widget name="web_ribbon"
+                            title="Inactive"
+                            bg_color="text-bg-danger"
+                            invisible="active"/>
+
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name"
+                                   placeholder="SLA rule name..."/>
+                        </h1>
+                    </div>
+
+                    <group>
+                        <group string="Rule Information">
+                            <field name="rule_type"/>
+                            <field name="sequence"/>
+                            <field name="active"/>
+                            <field name="penalty_applicable"/>
+                        </group>
+
+                        <group string="Scope">
+                            <field name="source_category"/>
+                            <field name="team_id"
+                                   options="{'no_create': True}"/>
+                            <field name="quality_id"
+                                   options="{'no_create': True}"/>
+                        </group>
+                    </group>
+
+                    <group string="Timing in Minutes">
+                        <group>
+                            <field name="duration_minutes"/>
+                            <field name="reminder_1_minutes"/>
+                            <field name="reminder_2_minutes"/>
+                        </group>
+
+                        <group>
+                            <field name="reminder_3_minutes"/>
+                            <field name="escalation_minutes"/>
+                            <field name="reassignment_minutes"/>
+                        </group>
+                    </group>
+
+                    <group string="Actions">
+                        <group>
+                            <field name="activity_type_id"
+                                   options="{'no_create': True}"/>
+                            <field name="escalation_user_id"
+                                   options="{'no_create': True}"/>
+                        </group>
+
+                        <group>
+                            <field name="reassignment_team_id"
+                                   options="{'no_create': True}"/>
+                        </group>
+                    </group>
+
+                    <div class="alert alert-warning" role="alert">
+                        Keep the SLA scheduled action disabled until
+                        SLA checking, escalation, and reassignment logic
+                        have been fully tested.
+                    </div>
+
+                </sheet>
+
+            </form>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         SLA RULE SEARCH
+         ========================================================= -->
+
+    <record id="view_brokerage_crm_sla_rule_search"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.sla.rule.search</field>
+        <field name="model">brokerage.crm.sla.rule</field>
+        <field name="arch" type="xml">
+            <search string="Search SLA Rules">
+
+                <field name="name"/>
+                <field name="rule_type"/>
+                <field name="source_category"/>
+                <field name="team_id"/>
+                <field name="quality_id"/>
+
+                <separator/>
+
+                <filter name="active_rules"
+                        string="Active"
+                        domain="[('active', '=', True)]"/>
+
+                <filter name="first_contact_rules"
+                        string="First Contact"
+                        domain="[('rule_type', '=', 'first_contact')]"/>
+
+                <filter name="lead_update_rules"
+                        string="Lead Update"
+                        domain="[('rule_type', '=', 'lead_update')]"/>
+
+                <filter name="meeting_follow_up_rules"
+                        string="Meeting Follow-up"
+                        domain="[('rule_type', '=', 'meeting_follow_up')]"/>
+
+                <group>
+                    <filter name="group_rule_type"
+                            string="Rule Type"
+                            context="{'group_by': 'rule_type'}"/>
+
+                    <filter name="group_team"
+                            string="Sales Team"
+                            context="{'group_by': 'team_id'}"/>
+
+                    <filter name="group_source"
+                            string="Source Category"
+                            context="{'group_by': 'source_category'}"/>
+                </group>
+
+            </search>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         SLA RULE ACTION
+         ========================================================= -->
+
+    <record id="action_brokerage_crm_sla_rule"
+            model="ir.actions.act_window">
+        <field name="name">SLA Rules</field>
+        <field name="res_model">brokerage.crm.sla.rule</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id"
+               ref="view_brokerage_crm_sla_rule_search"/>
+        <field name="context">{'search_default_active_rules': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Configure CRM SLA rules.
+            </p>
+        </field>
+    </record>
+
+</odoo>

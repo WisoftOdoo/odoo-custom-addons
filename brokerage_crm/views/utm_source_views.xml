@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- =========================================================
+         UTM SOURCE LIST VIEW
+         ========================================================= -->
+
+    <record id="view_utm_source_brokerage_list" model="ir.ui.view">
+        <field name="name">utm.source.brokerage.list</field>
+        <field name="model">utm.source</field>
+        <field name="arch" type="xml">
+            <list string="Lead Sources" default_order="name asc">
+
+                <field name="name"/>
+                <field name="brokerage_category"/>
+                <field name="round_robin_applicable"/>
+                <field name="sla_applicable"/>
+                <field name="penalty_applicable"/>
+                <field name="default_team_id"/>
+                <field name="require_direct_assignment"/>
+                <field name="is_bulk_source"/>
+
+            </list>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         UTM SOURCE FORM VIEW
+         ========================================================= -->
+
+    <record id="view_utm_source_brokerage_form" model="ir.ui.view">
+        <field name="name">utm.source.brokerage.form</field>
+        <field name="model">utm.source</field>
+        <field name="arch" type="xml">
+            <form string="Lead Source">
+
+                <sheet>
+
+                    <widget name="web_ribbon"
+                            title="Archived"
+                            bg_color="text-bg-danger"/>
+
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name"
+                                   placeholder="Lead source name..."/>
+                        </h1>
+                    </div>
+
+                    <group>
+                        <group string="Source Classification">
+                            <field name="brokerage_category"/>
+                            <field name="default_team_id"/>
+                        </group>
+
+                        <group string="Assignment Rules">
+                            <field name="round_robin_applicable"/>
+                            <field name="require_direct_assignment"
+                                   invisible="round_robin_applicable"/>
+                            <field name="is_bulk_source"/>
+                        </group>
+                    </group>
+
+                    <group string="SLA and Penalty Rules">
+                        <group>
+                            <field name="sla_applicable"/>
+                            <field name="penalty_applicable"
+                                   invisible="not sla_applicable"/>
+                        </group>
+                    </group>
+
+                    <div class="alert alert-info"
+                         role="alert"
+                         invisible="brokerage_category != 'marketing'">
+                        Marketing sources can be automatically assigned
+                        through strict Round Robin.
+                    </div>
+
+                    <div class="alert alert-warning"
+                         role="alert"
+                         invisible="not is_bulk_source">
+                        Bulk sources are excluded from automatic assignment
+                        and SLA until manually distributed.
+                    </div>
+
+                </sheet>
+
+            </form>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         UTM SOURCE SEARCH VIEW
+         ========================================================= -->
+
+    <record id="view_utm_source_brokerage_search" model="ir.ui.view">
+        <field name="name">utm.source.brokerage.search</field>
+        <field name="model">utm.source</field>
+        <field name="arch" type="xml">
+            <search string="Search Lead Sources">
+
+                <field name="name"/>
+                <field name="brokerage_category"/>
+                <field name="default_team_id"/>
+
+                <separator/>
+
+                <filter name="round_robin_sources"
+                        string="Round Robin"
+                        domain="[('round_robin_applicable', '=', True)]"/>
+
+                <filter name="sla_sources"
+                        string="SLA Applicable"
+                        domain="[('sla_applicable', '=', True)]"/>
+
+                <filter name="bulk_sources"
+                        string="Bulk Sources"
+                        domain="[('is_bulk_source', '=', True)]"/>
+
+                <group>
+                    <filter name="group_category"
+                            string="Category"
+                            context="{'group_by': 'brokerage_category'}"/>
+
+                    <filter name="group_team"
+                            string="Default Sales Team"
+                            context="{'group_by': 'default_team_id'}"/>
+                </group>
+
+            </search>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         UTM SOURCE ACTION
+         ========================================================= -->
+
+    <record id="action_utm_source_brokerage" model="ir.actions.act_window">
+        <field name="name">Lead Sources</field>
+        <field name="res_model">utm.source</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id"
+               ref="view_utm_source_brokerage_list"/>
+        <field name="search_view_id"
+               ref="view_utm_source_brokerage_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Configure your CRM lead sources.
+            </p>
+            <p>
+                Use the standard Odoo Source with brokerage assignment,
+                SLA, penalty, and bulk-upload rules.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_utm_source_brokerage_form_view"
+            model="ir.actions.act_window.view">
+        <field name="sequence" eval="20"/>
+        <field name="view_mode">form</field>
+        <field name="view_id"
+               ref="view_utm_source_brokerage_form"/>
+        <field name="act_window_id"
+               ref="action_utm_source_brokerage"/>
+    </record>
+
+</odoo>
