@@ -1,9 +1,9 @@
 {
     "name": "Wisoft Brokerage CRM",
-    "version": "19.0.1.3.1",
+    "version": "19.0.1.4.1",
     "category": "Sales/CRM",
     "summary": "Off-plan brokerage lead management workflow",
-    "author": "Wisoft",
+    "author": "Tranquil",
     "license": "LGPL-3",
     "depends": [
         "crm",
@@ -24,6 +24,7 @@
         "data/lead_quality_data.xml",
         "data/crm_activity_data.xml",
         "data/crm_sla_rule_data.xml",
+        "data/telephony_data.xml",
 
         # Normal models, views and actions.
         "views/brokerage_developer_views.xml",
@@ -33,8 +34,10 @@
         "views/crm_lead_quality_views.xml",
         "views/crm_round_robin_views.xml",
         "views/crm_sla_rule_views.xml",
+        "views/brokerage_telephony_views.xml",
         "views/res_config_settings_views.xml",
         "views/whatsapp_notification_views.xml",
+        "views/res_users_views.xml",
         "views/crm_meeting_views.xml",
 
         # Wizard actions must load before crm_lead_views.xml.

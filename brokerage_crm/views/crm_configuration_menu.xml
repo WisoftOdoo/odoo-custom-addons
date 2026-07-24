@@ -94,6 +94,26 @@
               sequence="40"
               groups="brokerage_crm.group_brokerage_sales_manager"/>
 
+    <menuitem id="menu_brokerage_telephony"
+              name="Telephony"
+              parent="menu_brokerage_crm_configuration"
+              sequence="50"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_telephony_provider"
+              name="Providers"
+              parent="menu_brokerage_telephony"
+              action="action_brokerage_telephony_provider"
+              sequence="10"
+              groups="base.group_system"/>
+
+    <menuitem id="menu_brokerage_telephony_events"
+              name="Event Log"
+              parent="menu_brokerage_telephony"
+              action="action_brokerage_telephony_event"
+              sequence="20"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
     <!-- =========================================================
          MEETING MENU UNDER CRM
          ========================================================= -->
@@ -103,6 +123,13 @@
               parent="crm.crm_menu_root"
               action="action_brokerage_crm_meeting"
               sequence="45"
+              groups="brokerage_crm.group_brokerage_crm_user"/>
+
+    <menuitem id="menu_brokerage_telephony_calls"
+              name="PBX Call History"
+              parent="crm.crm_menu_root"
+              action="action_brokerage_telephony_call"
+              sequence="46"
               groups="brokerage_crm.group_brokerage_crm_user"/>
 
 </odoo>

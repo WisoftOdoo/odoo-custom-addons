@@ -117,9 +117,30 @@
                                }"/>
                     </group>
 
+                    <group string="Agent Rotation Order">
+                        <field name="agent_sequence_ids"
+                               nolabel="1"
+                               create="0"
+                               delete="0">
+                            <list editable="bottom"
+                                  create="0"
+                                  delete="0"
+                                  default_order="sequence asc, user_id asc">
+                                <field name="sequence"/>
+                                <field name="user_id" readonly="1"/>
+                                <field name="available_for_crm_assignment"
+                                       readonly="1"/>
+                                <field name="user_active"
+                                       readonly="1"/>
+                            </list>
+                        </field>
+                    </group>
+
                     <div class="alert alert-info" role="alert">
-                        Salespeople are selected in the configured order.
-                        Inactive or unavailable users are skipped.
+                        Lower sequence values receive leads earlier. After
+                        changing Eligible Salespeople, save once to generate
+                        their rotation rows. Inactive or unavailable users
+                        are skipped.
                     </div>
 
                 </sheet>

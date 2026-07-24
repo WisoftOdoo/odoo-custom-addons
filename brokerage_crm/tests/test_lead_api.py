@@ -29,7 +29,6 @@ class TestBrokerageLeadApi(HttpCase):
             })
 
     def _post(self, payload):
-        self.authenticate(None, None)
         return self.url_open(
             "/brokerage/api/v1/leads",
             data=json.dumps(payload),
@@ -37,7 +36,6 @@ class TestBrokerageLeadApi(HttpCase):
                 "Content-Type": "application/json",
                 "X-Odoo-Database": get_db_name(),
             },
-            cookies={"session_id": self.session.sid},
         )
 
     def test_create_and_deduplicate_public_lead(self):

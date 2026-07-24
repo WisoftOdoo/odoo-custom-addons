@@ -34,6 +34,7 @@ class TestSla(TransactionCase):
         ).write({
             "assignment_type": "round_robin",
             "assigned_datetime": fields.Datetime.now() - timedelta(minutes=16),
+            "sla_cycle_active": True,
         })
         self.env["crm.lead"]._cron_check_brokerage_sla()
         log = self.env["brokerage.crm.sla.log"].search([
@@ -140,6 +141,7 @@ class TestSla(TransactionCase):
         ).write({
             "assignment_type": "round_robin",
             "assigned_datetime": original_assignment,
+            "sla_cycle_active": True,
         })
         normal_positions = [
             (configuration.next_index, configuration.assignment_count)
@@ -212,6 +214,68 @@ class TestSla(TransactionCase):
             ("lead_id", "=", lead.id),
             ("rule_id", "=", rule.id),
         ]))
+
+    def test_sla_restarts_for_cross_team_assignment_types(self):
+        self.env["brokerage.crm.sla.rule"].search([]).write({
+            "active": False,
+        })
+        rule = self.env["brokerage.crm.sla.rule"].create({
+            "name": "Reassigned Lead SLA",
+            "rule_type": "first_contact",
+            "duration_minutes": 60,
+            "reminder_1_minutes": 1,
+            "reminder_2_minutes": 0,
+            "reminder_3_minutes": 0,
+            "escalation_minutes": 0,
+            "reassignment_minutes": 0,
+            "activity_type_id": self.env.ref(
+                "brokerage_crm.mail_activity_type_call_customer"
+            ).id,
+        })
+        assigned_stage = self.env["crm.stage"].create({
+            "name": "Assigned Reassignment SLA",
+            "brokerage_code": "assigned",
+        })
+        salesperson = self.env["res.users"].create({
+            "name": "Reassigned SLA Agent",
+            "login": "reassigned.sla.agent@test.invalid",
+        })
+        leads = self.env["crm.lead"].create([
+            {
+                "name": "SLA Cross-Team Reassignment",
+                "user_id": salesperson.id,
+                "stage_id": assigned_stage.id,
+                "assignment_type": "reassignment",
+            },
+            {
+                "name": "SLA Not Interested Reassignment",
+                "user_id": salesperson.id,
+                "stage_id": assigned_stage.id,
+                "assignment_type": "not_interested_reassignment",
+            },
+        ])
+        leads.with_context(skip_assignment_history=True).write({
+            "assigned_datetime": fields.Datetime.now()
+            - timedelta(minutes=2),
+            "sla_cycle_active": True,
+        })
+
+        self.env["crm.lead"]._cron_check_brokerage_sla()
+
+        for lead in leads:
+            self.assertEqual(
+                self.env["brokerage.crm.sla.log"].search_count([
+                    ("lead_id", "=", lead.id),
+                    ("rule_id", "=", rule.id),
+                    ("event_type", "=", "reminder_1"),
+                    (
+                        "assignment_datetime",
+                        "=",
+                        lead.assigned_datetime,
+                    ),
+                ]),
+                1,
+            )
 
     def test_crm_settings_update_default_sla_timings(self):
         settings = self.env["res.config.settings"].create({

@@ -42,6 +42,12 @@ class CrmRoundRobin(models.Model):
         ],
         required=True,
     )
+    agent_sequence_ids = fields.One2many(
+        comodel_name="brokerage.crm.round.robin.agent",
+        inverse_name="round_robin_id",
+        string="Agent Rotation Order",
+        copy=True,
+    )
 
     next_index = fields.Integer(
         string="Next Position",
@@ -134,6 +140,43 @@ class CrmRoundRobin(models.Model):
         "The next assignment position cannot be negative.",
     )
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        configurations = super().create(vals_list)
+        configurations._sync_agent_sequence_lines()
+        return configurations
+
+    def write(self, vals):
+        result = super().write(vals)
+        if "member_ids" in vals:
+            self._sync_agent_sequence_lines()
+        return result
+
+    def _sync_agent_sequence_lines(self):
+        line_model = self.env["brokerage.crm.round.robin.agent"]
+        for configuration in self:
+            lines = configuration.agent_sequence_ids
+            removed_lines = lines.filtered(
+                lambda line: line.user_id not in configuration.member_ids
+            )
+            if removed_lines:
+                removed_lines.unlink()
+            remaining_lines = lines - removed_lines
+            existing_users = remaining_lines.mapped("user_id")
+            next_sequence = max(
+                remaining_lines.mapped("sequence") or [0]
+            )
+            for user in (configuration.member_ids - existing_users).sorted(
+                key=lambda member: member.id
+            ):
+                next_sequence += 10
+                line_model.create({
+                    "round_robin_id": configuration.id,
+                    "user_id": user.id,
+                    "sequence": next_sequence,
+                })
+        return True
+
     @api.constrains("member_ids", "team_id")
     def _check_members(self):
         for rule in self:
@@ -155,12 +198,20 @@ class CrmRoundRobin(models.Model):
     def _get_eligible_users(self):
         self.ensure_one()
 
-        return self.member_ids.filtered(
+        eligible_users = self.member_ids.filtered(
             lambda user:
                 user.active
                 and not user.share
                 and user.available_for_crm_assignment
-        ).sorted(key=lambda user: user.id)
+        )
+        ordered_lines = self.agent_sequence_ids.filtered(
+            lambda line: line.user_id in eligible_users
+        ).sorted(key=lambda line: (line.sequence, line.user_id.id))
+        ordered_users = ordered_lines.mapped("user_id")
+        missing_users = (eligible_users - ordered_users).sorted(
+            key=lambda user: user.id
+        )
+        return ordered_users | missing_users
 
     def _lock_configuration(self):
         """Prevent concurrent requests from consuming the same position."""
@@ -237,11 +288,13 @@ class CrmRoundRobin(models.Model):
         lead_values = {
             "team_id": self.team_id.id,
             "user_id": selected_user.id,
-            "assignment_type": "round_robin",
-            "assigned_datetime": now,
-            "first_contact_datetime": False,
-            "last_meaningful_update": now,
         }
+        lead_values.update(
+            lead._prepare_brokerage_assignment_cycle_values(
+                "round_robin", now
+            )
+        )
+        lead._clear_open_brokerage_sla_activities()
         lead.with_context(
             skip_assignment_history=True,
             skip_round_robin=True,
@@ -351,18 +404,21 @@ class CrmRoundRobin(models.Model):
         previous_team = lead.team_id
         now = fields.Datetime.now()
 
+        lead_values = {
+            "team_id": target_rule.team_id.id,
+            "user_id": selected_user.id,
+        }
+        lead_values.update(
+            lead._prepare_brokerage_assignment_cycle_values(
+                "reassignment", now
+            )
+        )
+        lead._clear_open_brokerage_sla_activities()
         lead.with_context(
             skip_assignment_history=True,
             skip_round_robin=True,
             brokerage_workflow_action=True,
-        ).write({
-            "team_id": target_rule.team_id.id,
-            "user_id": selected_user.id,
-            "assignment_type": "reassignment",
-            "assigned_datetime": now,
-            "first_contact_datetime": False,
-            "last_meaningful_update": now,
-        })
+        ).write(lead_values)
         lead.with_context(
             skip_assignment_history=True,
             skip_round_robin=True,
@@ -400,7 +456,6 @@ class CrmRoundRobin(models.Model):
                 "Opportunity cross-team reassigned from "
                 "<b>%(old_user)s</b> / <b>%(old_team)s</b> to "
                 "<b>%(new_user)s</b> / <b>%(new_team)s</b>. "
-                "The normal Round Robin queue was not changed."
             )) % {
                 "old_user": previous_user.display_name or "-",
                 "old_team": previous_team.display_name or "-",
@@ -482,29 +537,26 @@ class CrmRoundRobin(models.Model):
                 "using the Not Interested reassignment."
             ) % target_rule.team_id.display_name)
 
-        assigned_status = self.env[
-            "brokerage.crm.lead.status"
-        ].sudo().search([("code", "=", "assigned")], limit=1)
         previous_user = lead_sudo.user_id
         previous_team = lead_sudo.team_id
         now = fields.Datetime.now()
 
         lead_sudo._clear_open_brokerage_sla_activities()
+        lead_values = {
+            "team_id": target_rule.team_id.id,
+            "user_id": selected_user.id,
+            "not_interested_reassignment_done": True,
+        }
+        lead_values.update(
+            lead_sudo._prepare_brokerage_assignment_cycle_values(
+                "not_interested_reassignment", now
+            )
+        )
         lead_sudo.with_context(
             skip_assignment_history=True,
             skip_round_robin=True,
             brokerage_workflow_action=True,
-        ).write({
-            "team_id": target_rule.team_id.id,
-            "user_id": selected_user.id,
-            "assignment_type": "not_interested_reassignment",
-            "assigned_datetime": now,
-            "first_contact_datetime": False,
-            "last_status_update": now,
-            "last_meaningful_update": now,
-            "lead_status_id": assigned_status.id or False,
-            "not_interested_reassignment_done": True,
-        })
+        ).write(lead_values)
         lead_sudo.with_context(
             skip_assignment_history=True,
             skip_round_robin=True,

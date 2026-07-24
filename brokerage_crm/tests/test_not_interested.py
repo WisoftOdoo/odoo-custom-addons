@@ -1,3 +1,4 @@
+from odoo.exceptions import AccessError
 from odoo.tests.common import TransactionCase
 
 
@@ -71,7 +72,7 @@ class TestNotInterestedReassignment(TransactionCase):
             "status_id": self.not_interested_status.id,
             "remarks": remarks,
         })
-        wizard.action_confirm()
+        return wizard.action_confirm()
 
     def test_not_interested_reassigns_once_with_independent_queue(self):
         lead = self.env["crm.lead"].create({
@@ -91,8 +92,13 @@ class TestNotInterestedReassignment(TransactionCase):
             for rule in self.configurations
         ]
 
-        self._record_not_interested(lead, "Customer declined the first agent")
+        result = self._record_not_interested(
+            lead, "Customer declined the first agent"
+        )
 
+        self.assertEqual(result["type"], "ir.actions.act_window")
+        self.assertEqual(result["res_model"], "crm.lead")
+        self.assertEqual(result["target"], "current")
         self.assertEqual(lead.team_id, self.teams[1])
         self.assertEqual(lead.user_id, self.agents[1])
         self.assertEqual(lead.stage_id, self.assigned_stage)
@@ -102,6 +108,10 @@ class TestNotInterestedReassignment(TransactionCase):
             lead.assignment_type,
             "not_interested_reassignment",
         )
+        with self.assertRaises(AccessError):
+            self.env["crm.lead"].with_user(
+                self.agents[0]
+            ).browse(lead.id).read(["name"])
         self.configurations.invalidate_recordset()
         self.assertEqual(
             [

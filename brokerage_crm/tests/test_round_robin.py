@@ -12,6 +12,12 @@ class TestRoundRobin(TransactionCase):
             "name": "Test", "team_id": team.id,
             "member_ids": [(6, 0, users.ids)],
         })
+        sequence_by_user = {
+            users[0].id: 20,
+            users[1].id: 10,
+        }
+        for line in rule.agent_sequence_ids:
+            line.sequence = sequence_by_user[line.user_id.id]
         self.env["crm.stage"].create({
             "name": "Assigned Team Stage",
             "brokerage_code": "assigned",
@@ -23,7 +29,14 @@ class TestRoundRobin(TransactionCase):
         ])
         leads[0].write({"assignment_type": "round_robin"})
         leads[1].write({"assignment_type": "round_robin"})
-        self.assertEqual(leads.mapped("user_id"), users.sorted("id"))
+        self.assertEqual(
+            leads.mapped("user_id"),
+            users.sorted(key=lambda user: sequence_by_user[user.id]),
+        )
+        self.assertEqual(
+            rule.agent_sequence_ids.sorted("sequence").mapped("sequence"),
+            [10, 20],
+        )
         self.assertEqual(len(leads.assignment_history_ids), 2)
         assignment_message = leads[0].message_ids.filtered(
             lambda message: "assigned through Round Robin" in (
@@ -72,3 +85,55 @@ class TestRoundRobin(TransactionCase):
         self.assertEqual(set(leads.mapped("user_id").ids), set(salespeople.ids))
         self.assertEqual(leads.mapped("stage_id.brokerage_code"), ["assigned"])
         self.assertTrue(all(leads.mapped("assigned_datetime")))
+
+    def test_member_changes_synchronize_rotation_lines(self):
+        users = self.env["res.users"].create([
+            {
+                "name": "Sequence Agent One",
+                "login": "sequence.one@test.invalid",
+            },
+            {
+                "name": "Sequence Agent Two",
+                "login": "sequence.two@test.invalid",
+            },
+            {
+                "name": "Sequence Agent Three",
+                "login": "sequence.three@test.invalid",
+            },
+        ])
+        team = self.env["crm.team"].create({
+            "name": "Sequence Synchronization Team",
+        })
+        rule = self.env["brokerage.crm.round.robin"].create({
+            "name": "Sequence Synchronization",
+            "team_id": team.id,
+            "member_ids": [(6, 0, users[:2].ids)],
+        })
+
+        self.assertEqual(
+            rule.agent_sequence_ids.sorted("sequence").mapped("user_id"),
+            users[:2].sorted("id"),
+        )
+        self.assertEqual(
+            rule.agent_sequence_ids.sorted("sequence").mapped("sequence"),
+            [10, 20],
+        )
+
+        rule.member_ids = users[1:]
+
+        self.assertEqual(
+            set(rule.agent_sequence_ids.mapped("user_id").ids),
+            set(users[1:].ids),
+        )
+        self.assertEqual(
+            rule.agent_sequence_ids.filtered(
+                lambda line: line.user_id == users[1]
+            ).sequence,
+            20,
+        )
+        self.assertEqual(
+            rule.agent_sequence_ids.filtered(
+                lambda line: line.user_id == users[2]
+            ).sequence,
+            30,
+        )

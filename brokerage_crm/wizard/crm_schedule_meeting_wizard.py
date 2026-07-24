@@ -121,6 +121,7 @@ class CrmScheduleMeetingWizard(models.TransientModel):
             values["lead_status_id"] = status.id
 
         if stage:
+            lead._validate_brokerage_stage_move(stage)
             values["stage_id"] = stage.id
 
         lead.with_context(

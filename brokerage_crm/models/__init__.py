@@ -8,9 +8,14 @@ from . import brokerage_project
 from . import crm_contact_attempt
 from . import crm_meeting
 from . import crm_assignment_history
+from . import crm_round_robin_agent
 from . import crm_round_robin
 from . import crm_sla_rule
 from . import crm_sla_log
+from . import telephony_provider
+from . import telephony_call
+from . import res_company
 from . import res_users
 from . import res_config_settings
 from . import whatsapp_notification
+from . import crm_lead_telephony

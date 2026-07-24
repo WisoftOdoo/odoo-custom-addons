@@ -7,8 +7,14 @@ from odoo.exceptions import ValidationError
 class ResConfigSettings(models.TransientModel):
     _inherit = "res.config.settings"
 
+    brokerage_telephony_provider_id = fields.Many2one(
+        related="company_id.brokerage_telephony_provider_id",
+        readonly=False,
+        string="Default Telephony Provider",
+    )
+
     brokerage_sla_enabled = fields.Boolean(
-        string="Enable Round Robin First-Contact SLA",
+        string="Enable Assignment First-Contact SLA",
     )
     brokerage_sla_reminder_1_minutes = fields.Integer(
         string="Reminder 1 After",

@@ -155,6 +155,16 @@
         </field>
     </record>
 
+    <record id="action_utm_source_brokerage_list_view"
+            model="ir.actions.act_window.view">
+        <field name="sequence" eval="10"/>
+        <field name="view_mode">list</field>
+        <field name="view_id"
+               ref="view_utm_source_brokerage_list"/>
+        <field name="act_window_id"
+               ref="action_utm_source_brokerage"/>
+    </record>
+
     <record id="action_utm_source_brokerage_form_view"
             model="ir.actions.act_window.view">
         <field name="sequence" eval="20"/>

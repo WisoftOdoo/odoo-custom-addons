@@ -1,0 +1,309 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_brokerage_telephony_provider_list" model="ir.ui.view">
+        <field name="name">brokerage.telephony.provider.list</field>
+        <field name="model">brokerage.telephony.provider</field>
+        <field name="arch" type="xml">
+            <list default_order="company_id, sequence, id">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="adapter_type"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_brokerage_telephony_provider_form" model="ir.ui.view">
+        <field name="name">brokerage.telephony.provider.form</field>
+        <field name="model">brokerage.telephony.provider</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_regenerate_webhook_token"
+                            type="object"
+                            string="Regenerate Webhook Token"
+                            class="btn-secondary"
+                            confirm="The existing PBX webhook will stop working until its token is updated. Continue?"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon"
+                            title="Archived"
+                            bg_color="text-bg-danger"
+                            invisible="active"/>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name" placeholder="Office PBX"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Provider">
+                            <field name="active" invisible="1"/>
+                            <field name="code"/>
+                            <field name="adapter_type"/>
+                            <field name="company_id"
+                                   groups="base.group_multi_company"/>
+                            <field name="sequence"/>
+                        </group>
+                        <group string="Request Policy">
+                            <field name="call_timeout_seconds"/>
+                            <field name="connect_timeout"/>
+                            <field name="read_timeout"/>
+                            <field name="verify_ssl"/>
+                        </group>
+                    </group>
+
+                    <group string="Generic HTTP Outbound Adapter"
+                           invisible="adapter_type != 'generic_http'">
+                        <group>
+                            <field name="outbound_url"
+                                   placeholder="https://pbx-bridge.example.com/calls"/>
+                            <field name="outbound_auth_type"/>
+                        </group>
+                        <group>
+                            <field name="outbound_token"
+                                   password="True"
+                                   invisible="outbound_auth_type == 'none'"
+                                   required="adapter_type == 'generic_http' and outbound_auth_type != 'none'"/>
+                            <field name="api_key_header"
+                                   invisible="outbound_auth_type != 'api_key'"
+                                   required="adapter_type == 'generic_http' and outbound_auth_type == 'api_key'"/>
+                        </group>
+                    </group>
+
+                    <group string="3CX Call Control Adapter"
+                           invisible="adapter_type != 'three_cx'">
+                        <group>
+                            <field name="base_url"
+                                   placeholder="https://pbx.example.com"
+                                   required="adapter_type == 'three_cx'"/>
+                            <field name="client_id"
+                                   required="adapter_type == 'three_cx'"/>
+                        </group>
+                        <group>
+                            <field name="client_secret"
+                                   password="True"
+                                   required="adapter_type == 'three_cx'"/>
+                        </group>
+                    </group>
+
+                    <group string="Inbound Event / CDR Webhook">
+                        <field name="webhook_url" readonly="1"/>
+                        <field name="webhook_token" password="True"/>
+                    </group>
+                    <div class="alert alert-info" role="alert">
+                        <p>
+                            Send JSON events to the URL above with header
+                            <code>X-Brokerage-Telephony-Token</code>.
+                            Every event needs a unique <code>event_id</code>
+                            and either <code>request_id</code> or
+                            <code>external_call_id</code>.
+                        </p>
+                        <p class="mb-0">
+                            Supported status values include initiated, ringing,
+                            answered, completed, missed, failed, and cancelled.
+                            Exact PBX timestamps and duration seconds are stored
+                            without changing the CRM stage.
+                        </p>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_brokerage_telephony_provider" model="ir.actions.act_window">
+        <field name="name">Telephony Providers</field>
+        <field name="res_model">brokerage.telephony.provider</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_brokerage_telephony_call_search" model="ir.ui.view">
+        <field name="name">brokerage.telephony.call.search</field>
+        <field name="model">brokerage.telephony.call</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="external_call_id"/>
+                <field name="lead_id"/>
+                <field name="partner_id"/>
+                <field name="user_id"/>
+                <field name="to_number"/>
+                <filter name="my_calls"
+                        string="My Calls"
+                        domain="[('user_id', '=', uid)]"/>
+                <separator/>
+                <filter name="outgoing"
+                        string="Outgoing"
+                        domain="[('direction', '=', 'outgoing')]"/>
+                <filter name="incoming"
+                        string="Incoming"
+                        domain="[('direction', '=', 'incoming')]"/>
+                <filter name="answered"
+                        string="Answered"
+                        domain="[('answered_at', '!=', False)]"/>
+                <filter name="missed"
+                        string="Missed"
+                        domain="[('state', '=', 'missed')]"/>
+                <group>
+                    <filter name="group_user"
+                            string="Salesperson"
+                            context="{'group_by': 'user_id'}"/>
+                    <filter name="group_provider"
+                            string="Provider"
+                            context="{'group_by': 'provider_id'}"/>
+                    <filter name="group_state"
+                            string="Status"
+                            context="{'group_by': 'state'}"/>
+                    <filter name="group_date"
+                            string="Date"
+                            context="{'group_by': 'started_at:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_brokerage_telephony_call_list" model="ir.ui.view">
+        <field name="name">brokerage.telephony.call.list</field>
+        <field name="model">brokerage.telephony.call</field>
+        <field name="arch" type="xml">
+            <list create="false"
+                  edit="false"
+                  delete="false"
+                  default_order="started_at desc, create_date desc">
+                <field name="name"/>
+                <field name="started_at"/>
+                <field name="lead_id"/>
+                <field name="user_id" widget="many2one_avatar_user"/>
+                <field name="direction" widget="badge"/>
+                <field name="to_number"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'completed'"
+                       decoration-info="state == 'answered'"
+                       decoration-warning="state in ('initiated', 'ringing')"
+                       decoration-danger="state in ('failed', 'missed', 'cancelled')"/>
+                <field name="ring_duration_seconds" string="Ring (sec)"/>
+                <field name="talk_duration_seconds" string="Talk (sec)"/>
+                <field name="total_duration_seconds" string="Total (sec)"/>
+                <field name="provider_id" optional="hide"/>
+                <field name="external_call_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_brokerage_telephony_call_form" model="ir.ui.view">
+        <field name="name">brokerage.telephony.call.form</field>
+        <field name="model">brokerage.telephony.call</field>
+        <field name="arch" type="xml">
+            <form create="false" edit="false" delete="false">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_events"
+                                type="object"
+                                class="oe_stat_button"
+                                icon="fa-list"
+                                groups="brokerage_crm.group_brokerage_sales_manager"
+                                invisible="event_count == 0">
+                            <field name="event_count"
+                                   widget="statinfo"
+                                   string="Events"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="CRM">
+                            <field name="lead_id"/>
+                            <field name="partner_id"/>
+                            <field name="user_id" widget="many2one_avatar_user"/>
+                            <field name="company_id"
+                                   groups="base.group_multi_company"/>
+                        </group>
+                        <group string="PBX">
+                            <field name="provider_id"/>
+                            <field name="request_uid"/>
+                            <field name="external_call_id"/>
+                            <field name="external_parent_call_id"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Call">
+                            <field name="direction"/>
+                            <field name="state"/>
+                            <field name="from_number"/>
+                            <field name="to_number"/>
+                            <field name="agent_extension"/>
+                            <field name="agent_device_id"/>
+                        </group>
+                        <group string="Timing">
+                            <field name="started_at"/>
+                            <field name="answered_at"/>
+                            <field name="ended_at"/>
+                            <field name="ring_duration_seconds"/>
+                            <field name="talk_duration_seconds"/>
+                            <field name="total_duration_seconds"/>
+                        </group>
+                    </group>
+                    <group string="Completion">
+                        <field name="termination_reason"/>
+                        <field name="recording_url" widget="url"/>
+                        <field name="initiation_error"
+                               invisible="not initiation_error"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_brokerage_telephony_call" model="ir.actions.act_window">
+        <field name="name">PBX Call History</field>
+        <field name="res_model">brokerage.telephony.call</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id"
+               ref="view_brokerage_telephony_call_search"/>
+        <field name="context">{"search_default_my_calls": 1}</field>
+    </record>
+
+    <record id="view_brokerage_telephony_event_list" model="ir.ui.view">
+        <field name="name">brokerage.telephony.event.list</field>
+        <field name="model">brokerage.telephony.event</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false" delete="false">
+                <field name="received_at"/>
+                <field name="provider_id"/>
+                <field name="event_id"/>
+                <field name="event_type"/>
+                <field name="call_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_brokerage_telephony_event_form" model="ir.ui.view">
+        <field name="name">brokerage.telephony.event.form</field>
+        <field name="model">brokerage.telephony.event</field>
+        <field name="arch" type="xml">
+            <form create="false" edit="false" delete="false">
+                <sheet>
+                    <group>
+                        <field name="received_at"/>
+                        <field name="provider_id"/>
+                        <field name="event_id"/>
+                        <field name="event_type"/>
+                        <field name="call_id"/>
+                    </group>
+                    <group string="Raw Provider Payload">
+                        <field name="payload" widget="json"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_brokerage_telephony_event" model="ir.actions.act_window">
+        <field name="name">Telephony Event Log</field>
+        <field name="res_model">brokerage.telephony.event</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

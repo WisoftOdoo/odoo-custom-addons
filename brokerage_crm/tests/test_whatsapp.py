@@ -152,6 +152,7 @@ class TestBrokerageWhatsApp(TransactionCase):
         ).write({
             "assignment_type": "round_robin",
             "assigned_datetime": assignment_datetime,
+            "sla_cycle_active": True,
         })
 
         self.env["crm.lead"]._cron_check_brokerage_sla()

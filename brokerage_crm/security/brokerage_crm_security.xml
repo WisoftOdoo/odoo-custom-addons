@@ -105,4 +105,34 @@
         </field>
     </record>
 
+    <record id="rule_brokerage_telephony_call_user"
+            model="ir.rule">
+        <field name="name">Personal Brokerage Telephony Calls</field>
+        <field name="model_id"
+               ref="model_brokerage_telephony_call"/>
+        <field name="domain_force">[('user_id', '=', user.id)]</field>
+        <field name="groups"
+               eval="[(4, ref('brokerage_crm.group_brokerage_crm_user'))]"/>
+    </record>
+
+    <record id="rule_brokerage_telephony_provider_company"
+            model="ir.rule">
+        <field name="name">Brokerage Telephony Providers by Company</field>
+        <field name="model_id"
+               ref="model_brokerage_telephony_provider"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="groups"
+               eval="[(4, ref('brokerage_crm.group_brokerage_crm_user'))]"/>
+    </record>
+
+    <record id="rule_brokerage_telephony_call_manager"
+            model="ir.rule">
+        <field name="name">All Brokerage Telephony Calls for Managers</field>
+        <field name="model_id"
+               ref="model_brokerage_telephony_call"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups"
+               eval="[(4, ref('brokerage_crm.group_brokerage_sales_manager'))]"/>
+    </record>
+
 </odoo>

@@ -95,6 +95,7 @@ class CrmContactAttemptWizard(models.TransientModel):
                 lead.first_contact_datetime or self.attempt_datetime
             )
 
+        reassigned_user = False
         if self.status_id.code == "not_interested":
             reassigned_user = self.env[
                 "brokerage.crm.round.robin"
@@ -126,12 +127,13 @@ class CrmContactAttemptWizard(models.TransientModel):
             )
             target_stage = lead._find_brokerage_stage(target_code)
             if target_stage:
+                lead._validate_brokerage_stage_move(target_stage)
                 values["stage_id"] = target_stage.id
             lead.with_context(
                 brokerage_workflow_action=True,
             ).write(values)
 
-        lead.message_post(
+        lead.sudo().message_post(
             body=Markup(_(
                 "<b>Contact attempt recorded</b><br/>"
                 "Method: %(method)s<br/>"
@@ -145,6 +147,19 @@ class CrmContactAttemptWizard(models.TransientModel):
                 "remarks": self.remarks or "-",
             },
             subtype_xmlid="mail.mt_note",
+            author_id=self.env.user.partner_id.id,
         )
+
+        if reassigned_user:
+            # The former salesperson loses read access as soon as the lead is
+            # handed to another team. Returning "close" makes the web client
+            # refresh the now-inaccessible lead form and display an Access
+            # Error even though the reassignment succeeded. Replace the form
+            # with the user's pipeline instead.
+            action = self.env["ir.actions.actions"]._for_xml_id(
+                "crm.crm_lead_action_pipeline"
+            )
+            action["target"] = "current"
+            return action
 
         return {"type": "ir.actions.act_window_close"}

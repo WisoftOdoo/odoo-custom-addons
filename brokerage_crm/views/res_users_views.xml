@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_users_form_brokerage_telephony" model="ir.ui.view">
+        <field name="name">res.users.form.brokerage.telephony</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='calendar']" position="after">
+                <page name="brokerage_telephony"
+                      string="Brokerage Telephony"
+                      invisible="share">
+                    <group>
+                        <group string="PBX Identity">
+                            <field name="telephony_provider_id"
+                                   options="{'no_create': True, 'no_open': True}"/>
+                            <field name="telephony_extension"/>
+                            <field name="telephony_device_id"/>
+                        </group>
+                        <group string="How Calls Work">
+                            <div class="text-muted">
+                                The provider override is optional. When empty,
+                                the company default provider is used. The PBX
+                                extension identifies this salesperson. Device ID
+                                is optional and is useful when a PBX extension
+                                has multiple registered desk/mobile devices.
+                            </div>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

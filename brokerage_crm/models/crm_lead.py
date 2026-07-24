@@ -70,6 +70,19 @@ class CrmLead(models.Model):
         copy=False,
     )
 
+    sla_cycle_active = fields.Boolean(
+        string="SLA Cycle Active",
+        default=False,
+        readonly=True,
+        copy=False,
+        index=True,
+        help=(
+            "Technical flag activated only by a real assignment cycle. "
+            "Moving a progressed lead back to Assigned does not reactivate "
+            "an old SLA timer."
+        ),
+    )
+
     first_contact_datetime = fields.Datetime(
         string="First Contact Date/Time",
         tracking=True,
@@ -285,6 +298,10 @@ class CrmLead(models.Model):
             for lead in self:
                 lead._validate_brokerage_stage_move(stage)
 
+        if stage and self._stage_code(stage) != "assigned":
+            vals = dict(vals)
+            vals["sla_cycle_active"] = False
+
         trigger_round_robin = (
             vals.get("assignment_type") == "round_robin"
             and not self.env.context.get("skip_round_robin")
@@ -462,28 +479,113 @@ class CrmLead(models.Model):
             "|", ("team_ids", "=", False), ("team_ids", "in", target_team.ids),
         ], order="sequence, id", limit=1)
 
+    def _prepare_brokerage_assignment_cycle_values(
+        self, assignment_type, assigned_datetime=None
+    ):
+        """Reset transient workflow evidence for a new salesperson cycle."""
+        self.ensure_one()
+        assigned_datetime = assigned_datetime or fields.Datetime.now()
+        assigned_status = self.env[
+            "brokerage.crm.lead.status"
+        ].sudo().search([("code", "=", "assigned")], limit=1)
+        return {
+            "assignment_type": assignment_type,
+            "assigned_datetime": assigned_datetime,
+            "sla_cycle_active": True,
+            "first_contact_datetime": False,
+            "last_status_update": assigned_datetime,
+            "last_meaningful_update": assigned_datetime,
+            "lead_status_id": assigned_status.id or False,
+            "forecast_remarks": False,
+            "final_developer_id": False,
+            "final_project_id": False,
+            "final_unit_type": False,
+            "estimated_property_value": 0,
+            "expected_booking_date": False,
+        }
+
+    def _current_assignment_contact_attempts(self):
+        self.ensure_one()
+        domain = [("lead_id", "=", self.id)]
+        if self.assigned_datetime:
+            domain.append((
+                "attempt_datetime",
+                ">=",
+                self.assigned_datetime,
+            ))
+        if self.user_id:
+            domain.append(("user_id", "=", self.user_id.id))
+        return self.env["brokerage.crm.contact.attempt"].search(domain)
+
+    def _current_assignment_meetings(self):
+        self.ensure_one()
+        domain = [("lead_id", "=", self.id)]
+        if self.assigned_datetime:
+            domain.append(("create_date", ">=", self.assigned_datetime))
+        if self.user_id:
+            domain.append(("create_uid", "=", self.user_id.id))
+        return self.env["brokerage.crm.meeting"].search(domain)
+
     def _validate_brokerage_stage_move(self, target_stage):
         self.ensure_one()
         code = self._stage_code(target_stage)
-        if code == "contact_attempted" and not self.contact_attempt_ids:
+        current_code = self._stage_code(self.stage_id)
+        if (
+            current_code
+            and code
+            and target_stage.sequence < self.stage_id.sequence
+        ):
+            raise ValidationError(_(
+                "Leads cannot be moved backward from %(current)s to "
+                "%(target)s by dragging the pipeline card. Ask a Sales "
+                "Manager to use Correct Stage when a genuine correction "
+                "is required."
+            ) % {
+                "current": self.stage_id.display_name,
+                "target": target_stage.display_name,
+            })
+
+        attempts = self._current_assignment_contact_attempts()
+        successful_attempts = attempts.filtered("successful_contact")
+        meetings = self._current_assignment_meetings()
+        if code == "contact_attempted" and not attempts:
             raise ValidationError(
-                _("Record a Contact Attempt before moving to Contact Attempted.")
+                _(
+                    "The current salesperson must record a Contact Attempt "
+                    "after this assignment before moving to Contact Attempted."
+                )
             )
-        if code == "contacted" and not self.contact_attempt_ids.filtered("successful_contact"):
+        if code == "contacted" and not successful_attempts:
             raise ValidationError(
-                _("Record a successful contact result before moving to Contacted.")
+                _(
+                    "The current salesperson must record a successful contact "
+                    "after this assignment before moving to Contacted."
+                )
             )
-        if code == "meeting_scheduled" and not self.brokerage_meeting_ids.filtered(
+        if code in (
+            "meeting_scheduled", "meeting_completed", "forecast", "hot", "kyc"
+        ) and not successful_attempts:
+            raise ValidationError(_(
+                "The current salesperson must record a successful contact "
+                "before progressing to meeting and later stages."
+            ))
+        if code == "meeting_scheduled" and not meetings.filtered(
             lambda meeting: meeting.state in ("scheduled", "rescheduled", "completed")
         ):
             raise ValidationError(
-                _("Schedule and log the meeting before moving to Meeting Scheduled.")
+                _(
+                    "The current salesperson must schedule and log a meeting "
+                    "after this assignment before moving to Meeting Scheduled."
+                )
             )
-        if code in ("meeting_completed", "forecast", "hot", "kyc") and not self.brokerage_meeting_ids.filtered(
+        if code in ("meeting_completed", "forecast", "hot", "kyc") and not meetings.filtered(
             lambda meeting: meeting.state == "completed"
         ):
             raise ValidationError(
-                _("Complete the mandatory meeting log before moving forward.")
+                _(
+                    "The current salesperson must complete a meeting created "
+                    "after this assignment before moving forward."
+                )
             )
         if code == "hot" and not all((
             self.final_developer_id, self.final_project_id,
@@ -505,7 +607,16 @@ class CrmLead(models.Model):
                 ("active", "=", True),
                 ("user_id", "!=", False),
                 ("assigned_datetime", "!=", False),
-                ("assignment_type", "=", "round_robin"),
+                ("sla_cycle_active", "=", True),
+                (
+                    "assignment_type",
+                    "in",
+                    [
+                        "round_robin",
+                        "reassignment",
+                        "not_interested_reassignment",
+                    ],
+                ),
             ]
             if rule.team_id:
                 domain.append(("team_id", "=", rule.team_id.id))

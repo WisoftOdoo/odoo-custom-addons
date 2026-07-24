@@ -22,6 +22,12 @@
 
             <xpath expr="//form/header" position="inside">
 
+                <button name="action_brokerage_call_customer"
+                        type="object"
+                        string="Call Customer"
+                        icon="fa-phone"
+                        invisible="not id or not user_id or not phone"/>
+
                 <button name="%(brokerage_crm.action_crm_contact_attempt_wizard)d"
                         type="action"
                         string="Record Contact Attempt"
@@ -41,6 +47,12 @@
                         type="action"
                         string="Reassign"
                         groups="brokerage_crm.group_brokerage_team_leader"
+                        invisible="not id"/>
+
+                <button name="%(brokerage_crm.action_crm_stage_correction_wizard)d"
+                        type="action"
+                        string="Correct Stage"
+                        groups="brokerage_crm.group_brokerage_sales_manager"
                         invisible="not id"/>
 
             </xpath>
@@ -111,6 +123,18 @@
                     <field name="assignment_history_count"
                            widget="statinfo"
                            string="Assignments"/>
+
+                </button>
+
+                <button name="action_view_telephony_calls"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-phone-square"
+                        invisible="telephony_call_count == 0">
+
+                    <field name="telephony_call_count"
+                           widget="statinfo"
+                           string="PBX Calls"/>
 
                 </button>
 
@@ -186,6 +210,35 @@
                             <field name="remarks"/>
                             <field name="next_activity_type_id"/>
                             <field name="next_activity_date"/>
+
+                        </list>
+
+                    </field>
+
+                </page>
+
+                <page string="PBX Calls"
+                      name="brokerage_telephony_calls">
+
+                    <field name="telephony_call_ids"
+                           readonly="1">
+
+                        <list create="false"
+                              edit="false"
+                              delete="false"
+                              default_order="started_at desc, create_date desc">
+
+                            <field name="started_at"/>
+                            <field name="user_id"/>
+                            <field name="direction" widget="badge"/>
+                            <field name="to_number"/>
+                            <field name="state" widget="badge"/>
+                            <field name="ring_duration_seconds"
+                                   string="Ring (sec)"/>
+                            <field name="talk_duration_seconds"
+                                   string="Talk (sec)"/>
+                            <field name="total_duration_seconds"
+                                   string="Total (sec)"/>
 
                         </list>
 

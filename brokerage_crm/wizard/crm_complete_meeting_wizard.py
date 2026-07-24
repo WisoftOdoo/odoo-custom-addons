@@ -69,6 +69,13 @@ class CrmCompleteMeetingWizard(models.TransientModel):
         meeting = self.meeting_id
         lead = self.lead_id
 
+        if meeting not in lead._current_assignment_meetings():
+            raise ValidationError(_(
+                "Select a meeting created by the current salesperson after "
+                "the latest assignment. Historical meetings remain available "
+                "for audit but cannot complete this assignment cycle."
+            ))
+
         meeting.write({
             "state": "completed",
             "actual_start": self.actual_start,
@@ -109,6 +116,7 @@ class CrmCompleteMeetingWizard(models.TransientModel):
             values["lead_status_id"] = status.id
 
         if stage:
+            lead._validate_brokerage_stage_move(stage)
             values["stage_id"] = stage.id
 
         lead.with_context(
