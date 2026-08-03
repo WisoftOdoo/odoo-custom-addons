@@ -1,6 +1,6 @@
 from markupsafe import Markup
 
-from odoo import fields, models, _
+from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
 
 
@@ -19,6 +19,17 @@ class CrmContactAttemptWizard(models.TransientModel):
         default=fields.Datetime.now,
     )
 
+    method_id = fields.Many2one(
+        comodel_name="brokerage.crm.contact.method",
+        string="Method",
+        required=True,
+        default=lambda self: self.env.ref(
+            "brokerage_crm.contact_method_phone_call",
+            raise_if_not_found=False,
+        ),
+        ondelete="restrict",
+    )
+
     method = fields.Selection(
         selection=[
             ("call", "Phone Call"),
@@ -27,8 +38,8 @@ class CrmContactAttemptWizard(models.TransientModel):
             ("sms", "SMS"),
             ("other", "Other"),
         ],
-        required=True,
-        default="call",
+        string="Legacy Method",
+        help="Compatibility input for older integrations.",
     )
 
     status_id = fields.Many2one(
@@ -48,6 +59,18 @@ class CrmContactAttemptWizard(models.TransientModel):
 
     next_activity_date = fields.Date()
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        method_model = self.env["brokerage.crm.contact.method"]
+        for vals in vals_list:
+            if vals.get("method") and not vals.get("method_id"):
+                method = method_model.search([
+                    ("code", "=", vals["method"]),
+                ], limit=1)
+                if method:
+                    vals["method_id"] = method.id
+        return super().create(vals_list)
+
     def action_confirm(self):
         self.ensure_one()
 
@@ -62,7 +85,7 @@ class CrmContactAttemptWizard(models.TransientModel):
             "lead_id": lead.id,
             "user_id": self.env.user.id,
             "attempt_datetime": self.attempt_datetime,
-            "method": self.method,
+            "method_id": self.method_id.id,
             "status_id": self.status_id.id,
             "remarks": self.remarks,
             "next_activity_type_id": self.next_activity_type_id.id or False,
@@ -97,15 +120,18 @@ class CrmContactAttemptWizard(models.TransientModel):
 
         reassigned_user = False
         if self.status_id.code == "not_interested":
-            reassigned_user = self.env[
-                "brokerage.crm.round.robin"
-            ].assign_lead_not_interested_once(
-                lead,
-                reason=_(
-                    "One-time cross-team reassignment after the agent "
-                    "recorded Not Interested"
-                ),
-            )
+            # A solo campaign never participates in the independent Not
+            # Interested queue. It remains in the final bucket instead.
+            if not lead.team_id.brokerage_solo_campaign:
+                reassigned_user = self.env[
+                    "brokerage.crm.round.robin"
+                ].assign_lead_not_interested_once(
+                    lead,
+                    reason=_(
+                        "One-time reassignment after the agent "
+                        "recorded Not Interested"
+                    ),
+                )
             if not reassigned_user:
                 target_stage = lead._find_brokerage_stage(
                     "not_interested"
@@ -140,9 +166,7 @@ class CrmContactAttemptWizard(models.TransientModel):
                 "Status: %(status)s<br/>"
                 "Remarks: %(remarks)s"
             )) % {
-                "method": dict(
-                    self._fields["method"].selection
-                ).get(self.method),
+                "method": self.method_id.display_name,
                 "status": self.status_id.display_name,
                 "remarks": self.remarks or "-",
             },

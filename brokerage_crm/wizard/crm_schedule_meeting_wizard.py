@@ -1,4 +1,4 @@
-from odoo import fields, models, _
+from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
 
 
@@ -17,6 +17,17 @@ class CrmScheduleMeetingWizard(models.TransientModel):
         default="Client Meeting",
     )
 
+    meeting_type_id = fields.Many2one(
+        comodel_name="brokerage.crm.meeting.type",
+        string="Meeting Type",
+        required=True,
+        default=lambda self: self.env.ref(
+            "brokerage_crm.meeting_type_office",
+            raise_if_not_found=False,
+        ),
+        ondelete="restrict",
+    )
+
     meeting_type = fields.Selection(
         selection=[
             ("office", "Office Meeting"),
@@ -28,8 +39,14 @@ class CrmScheduleMeetingWizard(models.TransientModel):
             ("developer_office", "Developer Office"),
             ("other", "Other"),
         ],
-        required=True,
-        default="office",
+        string="Legacy Meeting Type",
+        help="Compatibility input for older integrations.",
+    )
+
+    meeting_type_location_mode = fields.Selection(
+        related="meeting_type_id.location_mode",
+        string="Meeting Location Requirement",
+        readonly=True,
     )
 
     scheduled_start = fields.Datetime(required=True)
@@ -51,6 +68,18 @@ class CrmScheduleMeetingWizard(models.TransientModel):
         string="Developer RM",
     )
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        meeting_type_model = self.env["brokerage.crm.meeting.type"]
+        for vals in vals_list:
+            if vals.get("meeting_type") and not vals.get("meeting_type_id"):
+                meeting_type = meeting_type_model.search([
+                    ("code", "=", vals["meeting_type"]),
+                ], limit=1)
+                if meeting_type:
+                    vals["meeting_type_id"] = meeting_type.id
+        return super().create(vals_list)
+
     def action_confirm(self):
         self.ensure_one()
 
@@ -65,7 +94,7 @@ class CrmScheduleMeetingWizard(models.TransientModel):
             "lead_id": lead.id,
             "name": self.name,
             "state": "scheduled",
-            "meeting_type": self.meeting_type,
+            "meeting_type_id": self.meeting_type_id.id,
             "scheduled_start": self.scheduled_start,
             "scheduled_end": self.scheduled_end,
             "location": self.location,

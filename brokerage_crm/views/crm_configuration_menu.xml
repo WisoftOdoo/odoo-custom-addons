@@ -53,6 +53,27 @@
               sequence="50"
               groups="brokerage_crm.group_brokerage_sales_manager"/>
 
+    <menuitem id="menu_brokerage_contact_methods"
+              name="Contact Methods"
+              parent="menu_brokerage_master_data"
+              action="action_brokerage_crm_contact_method"
+              sequence="60"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_meeting_types"
+              name="Meeting Types"
+              parent="menu_brokerage_master_data"
+              action="action_brokerage_crm_meeting_type"
+              sequence="70"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_meeting_outcomes"
+              name="Meeting Outcomes"
+              parent="menu_brokerage_master_data"
+              action="action_brokerage_crm_meeting_outcome"
+              sequence="80"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
     <!-- =========================================================
          ASSIGNMENT
          ========================================================= -->
@@ -68,6 +89,13 @@
               parent="menu_brokerage_assignment"
               action="action_brokerage_crm_round_robin"
               sequence="10"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_team_hierarchy"
+              name="Team Hierarchy"
+              parent="menu_brokerage_assignment"
+              action="sales_team.crm_team_action_config"
+              sequence="5"
               groups="brokerage_crm.group_brokerage_sales_manager"/>
 
     <!-- =========================================================
@@ -98,6 +126,7 @@
               name="Telephony"
               parent="menu_brokerage_crm_configuration"
               sequence="50"
+              active="False"
               groups="brokerage_crm.group_brokerage_sales_manager"/>
 
     <menuitem id="menu_brokerage_telephony_provider"
@@ -105,6 +134,7 @@
               parent="menu_brokerage_telephony"
               action="action_brokerage_telephony_provider"
               sequence="10"
+              active="False"
               groups="base.group_system"/>
 
     <menuitem id="menu_brokerage_telephony_events"
@@ -112,6 +142,7 @@
               parent="menu_brokerage_telephony"
               action="action_brokerage_telephony_event"
               sequence="20"
+              active="False"
               groups="brokerage_crm.group_brokerage_sales_manager"/>
 
     <!-- =========================================================
@@ -119,7 +150,7 @@
          ========================================================= -->
 
     <menuitem id="menu_brokerage_crm_meetings"
-              name="Brokerage Meetings"
+              name="Meetings"
               parent="crm.crm_menu_root"
               action="action_brokerage_crm_meeting"
               sequence="45"
@@ -130,6 +161,7 @@
               parent="crm.crm_menu_root"
               action="action_brokerage_telephony_call"
               sequence="46"
+              active="False"
               groups="brokerage_crm.group_brokerage_crm_user"/>
 
 </odoo>

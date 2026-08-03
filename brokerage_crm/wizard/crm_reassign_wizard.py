@@ -44,6 +44,7 @@ class CrmReassignWizard(models.TransientModel):
 
         previous_user = lead.user_id
         previous_team = lead.team_id
+        before_snapshot = lead._brokerage_assignment_snapshot()
         now = fields.Datetime.now()
         assigned_stage = lead._find_brokerage_stage(
             "assigned", team=self.new_team_id
@@ -86,6 +87,10 @@ class CrmReassignWizard(models.TransientModel):
             "assigned_datetime": now,
             "assigned_by_id": self.env.user.id,
             "reason": self.reason,
+            "previous_stage_id": before_snapshot.get("stage_id") or False,
+            "new_stage_id": lead.stage_id.id or False,
+            "before_snapshot": before_snapshot,
+            "after_snapshot": lead._brokerage_assignment_snapshot(),
         })
 
         lead.sudo().message_post(

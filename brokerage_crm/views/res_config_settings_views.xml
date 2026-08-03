@@ -10,7 +10,7 @@
             <xpath expr="//app[@name='crm']" position="inside">
                 <block title="Brokerage Telephony"
                        name="brokerage_telephony_settings"
-                       groups="base.group_system">
+                       groups="base.group_no_one">
                     <setting id="brokerage_telephony_provider"
                              string="Default PBX Provider"
                              help="Provider used for Brokerage CRM click-to-call unless a user-specific override is configured.">
@@ -30,7 +30,7 @@
                        groups="base.group_system,brokerage_crm.group_brokerage_sales_manager">
                     <setting id="brokerage_sla_enabled"
                              string="Assignment First-Contact SLA"
-                             help="Apply reminders, manager escalation, and cross-team reassignment to normal Round Robin, SLA-reassigned, and Not Interested-reassigned leads.">
+                             help="Apply working-hours reminders, Team Leader escalation, same-team-first reassignment, and eventual cross-team reassignment to normal, reassigned, Not Interested-reassigned, and solo campaign leads.">
                         <field name="brokerage_sla_enabled"/>
                         <div class="content-group mt16"
                              invisible="not brokerage_sla_enabled">
@@ -70,7 +70,13 @@
                                 <span class="ms-2">minutes</span>
                             </div>
                             <div class="text-muted mt8">
-                                Times are measured from the Round Robin assignment.
+                                Times count only inside the assigned team's SLA
+                                Working Hours. Assignment WhatsApp alerts are
+                                queued immediately, including outside working
+                                hours. Agent reminders escalate to the Team
+                                Leader. Reassignment then exhausts the current
+                                team's Eligible Salespeople before moving to a
+                                team selected by Configuration Sequence.
                                 Enter 0 to disable an individual step. Enabled steps
                                 must be in chronological order.
                             </div>
@@ -133,10 +139,36 @@
                                        class="oe_inline"
                                        required="brokerage_ultramsg_enabled"/>
                             </div>
+                            <div class="row mt8">
+                                <label for="brokerage_ultramsg_retry_base_minutes"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_ultramsg_retry_base_minutes"
+                                       class="oe_inline"
+                                       required="brokerage_ultramsg_enabled"/>
+                                <span class="ms-2">minutes</span>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_ultramsg_retry_max_minutes"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_ultramsg_retry_max_minutes"
+                                       class="oe_inline"
+                                       required="brokerage_ultramsg_enabled"/>
+                                <span class="ms-2">minutes</span>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_ultramsg_failure_alert_user_id"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_ultramsg_failure_alert_user_id"
+                                       class="oe_inline"
+                                       options="{'no_create': True}"/>
+                            </div>
                             <div class="text-muted mt8">
                                 Recipient numbers are read from each Odoo user's
                                 Contact: Mobile first, then Phone. Missing or invalid
                                 numbers are skipped and shown in the delivery log.
+                                Retries use exponential backoff. The token is stored
+                                as a protected system parameter and is never written
+                                to delivery logs or chatter.
                             </div>
                         </div>
                     </setting>

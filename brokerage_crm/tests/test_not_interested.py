@@ -170,3 +170,124 @@ class TestNotInterestedReassignment(TransactionCase):
             )),
             1,
         )
+
+    def test_not_interested_prefers_one_same_team_handoff(self):
+        second_team_a_agent = self.env["res.users"].create({
+            "name": "Not Interested Agent A2",
+            "login": "not.interested.a2@test.invalid",
+            "group_ids": [(6, 0, [
+                self.env.ref(
+                    "brokerage_crm.group_brokerage_crm_user"
+                ).id,
+            ])],
+        })
+        self.configurations[0].member_ids |= second_team_a_agent
+        for line in self.configurations[0].agent_sequence_ids:
+            line.sequence = (
+                10 if line.user_id == self.agents[0] else 20
+            )
+        lead = self.env["crm.lead"].create({
+            "name": "Same-team Not Interested Lead",
+            "type": "opportunity",
+            "team_id": self.teams[0].id,
+            "user_id": self.agents[0].id,
+            "stage_id": self.assigned_stage.id,
+            "lead_status_id": self.assigned_status.id,
+        })
+        normal_state = [
+            (rule.next_index, rule.assignment_count)
+            for rule in self.configurations
+        ]
+        cross_state = [
+            (rule.cross_team_next_index, rule.cross_team_assignment_count)
+            for rule in self.configurations
+        ]
+
+        self._record_not_interested(
+            lead,
+            "Customer declined the first Team A salesperson",
+        )
+
+        lead.invalidate_recordset()
+        self.configurations.invalidate_recordset()
+        self.assertEqual(lead.team_id, self.teams[0])
+        self.assertEqual(lead.user_id, second_team_a_agent)
+        self.assertTrue(lead.not_interested_reassignment_done)
+        self.assertEqual(
+            self.configurations[0].not_interested_assignment_count,
+            1,
+        )
+        self.assertEqual(
+            [(rule.next_index, rule.assignment_count)
+             for rule in self.configurations],
+            normal_state,
+        )
+        self.assertEqual(
+            [(rule.cross_team_next_index, rule.cross_team_assignment_count)
+             for rule in self.configurations],
+            cross_state,
+        )
+
+        self._record_not_interested(
+            lead,
+            "Customer declined the one-time reassigned salesperson",
+        )
+        lead.invalidate_recordset()
+        self.assertEqual(lead.team_id, self.teams[0])
+        self.assertEqual(lead.user_id, second_team_a_agent)
+        self.assertEqual(lead.stage_id, self.not_interested_stage)
+
+    def test_not_interested_cross_team_follows_hierarchy_not_counts(self):
+        self.configurations[0].write({"sequence": 10})
+        self.configurations[1].write({
+            "sequence": 20,
+            "not_interested_assignment_count": 100,
+        })
+        team_c_agent = self.env["res.users"].create({
+            "name": "Not Interested Agent C",
+            "login": "not.interested.c@test.invalid",
+            "group_ids": [(6, 0, [
+                self.env.ref(
+                    "brokerage_crm.group_brokerage_crm_user"
+                ).id,
+            ])],
+        })
+        team_c = self.env["crm.team"].create({
+            "name": "Not Interested Team C",
+            "user_id": self.env.user.id,
+        })
+        self.assigned_stage.team_ids |= team_c
+        configuration_c = self.env["brokerage.crm.round.robin"].create({
+            "name": "Not Interested Queue C",
+            "sequence": 30,
+            "team_id": team_c.id,
+            "member_ids": [(6, 0, [team_c_agent.id])],
+            "not_interested_assignment_count": 0,
+        })
+        lead = self.env["crm.lead"].create({
+            "name": "Not Interested hierarchy beats count",
+            "type": "opportunity",
+            "team_id": self.teams[0].id,
+            "user_id": self.agents[0].id,
+            "stage_id": self.assigned_stage.id,
+            "lead_status_id": self.assigned_status.id,
+        })
+
+        self._record_not_interested(
+            lead,
+            "Use the next team by hierarchy",
+        )
+
+        lead.invalidate_recordset()
+        self.configurations.invalidate_recordset()
+        configuration_c.invalidate_recordset()
+        self.assertEqual(lead.team_id, self.teams[1])
+        self.assertEqual(lead.user_id, self.agents[1])
+        self.assertEqual(
+            self.configurations[1].not_interested_assignment_count,
+            101,
+        )
+        self.assertEqual(
+            configuration_c.not_interested_assignment_count,
+            0,
+        )

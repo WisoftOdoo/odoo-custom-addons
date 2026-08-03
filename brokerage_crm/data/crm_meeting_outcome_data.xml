@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo noupdate="1">
+    <record id="meeting_outcome_interested" model="brokerage.crm.meeting.outcome">
+        <field name="name">Interested</field>
+        <field name="code">interested</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="meeting_outcome_follow_up" model="brokerage.crm.meeting.outcome">
+        <field name="name">Follow-up Required</field>
+        <field name="code">follow_up</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="meeting_outcome_project_shortlisted" model="brokerage.crm.meeting.outcome">
+        <field name="name">Project Shortlisted</field>
+        <field name="code">project_shortlisted</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="meeting_outcome_unit_shortlisted" model="brokerage.crm.meeting.outcome">
+        <field name="name">Unit Shortlisted</field>
+        <field name="code">unit_shortlisted</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="meeting_outcome_budget_mismatch" model="brokerage.crm.meeting.outcome">
+        <field name="name">Budget Mismatch</field>
+        <field name="code">budget_mismatch</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="meeting_outcome_not_interested" model="brokerage.crm.meeting.outcome">
+        <field name="name">Not Interested</field>
+        <field name="code">not_interested</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="meeting_outcome_reschedule" model="brokerage.crm.meeting.outcome">
+        <field name="name">Reschedule Required</field>
+        <field name="code">reschedule</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="meeting_outcome_decision_pending" model="brokerage.crm.meeting.outcome">
+        <field name="name">Decision Pending</field>
+        <field name="code">decision_pending</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="meeting_outcome_other" model="brokerage.crm.meeting.outcome">
+        <field name="name">Other</field>
+        <field name="code">other</field>
+        <field name="sequence">90</field>
+        <field name="active" eval="False"/>
+    </record>
+</odoo>

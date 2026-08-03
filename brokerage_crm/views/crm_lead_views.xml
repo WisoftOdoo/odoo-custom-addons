@@ -26,22 +26,40 @@
                         type="object"
                         string="Call Customer"
                         icon="fa-phone"
-                        invisible="not id or not user_id or not phone"/>
+                        invisible="1"/>
 
                 <button name="%(brokerage_crm.action_crm_contact_attempt_wizard)d"
                         type="action"
                         string="Record Contact Attempt"
-                        invisible="not id or not user_id"/>
+                        class="oe_highlight"
+                        invisible="not id or not user_id or brokerage_next_action != 'contact_attempt'"/>
+
+                <button name="%(brokerage_crm.action_crm_contact_attempt_wizard)d"
+                        type="action"
+                        string="Record Contact Attempt"
+                        invisible="not id or not user_id or brokerage_next_action == 'contact_attempt'"/>
 
                 <button name="%(brokerage_crm.action_crm_schedule_meeting_wizard)d"
                         type="action"
                         string="Schedule Meeting"
-                        invisible="not id"/>
+                        class="oe_highlight"
+                        invisible="not id or brokerage_next_action != 'schedule_meeting'"/>
+
+                <button name="%(brokerage_crm.action_crm_schedule_meeting_wizard)d"
+                        type="action"
+                        string="Schedule Meeting"
+                        invisible="not id or brokerage_next_action == 'schedule_meeting'"/>
 
                 <button name="%(brokerage_crm.action_crm_complete_meeting_wizard)d"
                         type="action"
                         string="Complete Meeting"
-                        invisible="not id or meeting_count == 0"/>
+                        class="oe_highlight"
+                        invisible="not id or meeting_count == 0 or brokerage_next_action != 'complete_meeting'"/>
+
+                <button name="%(brokerage_crm.action_crm_complete_meeting_wizard)d"
+                        type="action"
+                        string="Complete Meeting"
+                        invisible="not id or meeting_count == 0 or brokerage_next_action == 'complete_meeting'"/>
 
                 <button name="%(brokerage_crm.action_crm_reassign_wizard)d"
                         type="action"
@@ -55,6 +73,15 @@
                         groups="brokerage_crm.group_brokerage_sales_manager"
                         invisible="not id"/>
 
+                <button name="action_recover_last_assignment"
+                        type="object"
+                        string="Recover Assignment"
+                        groups="brokerage_crm.group_brokerage_sales_manager"
+                        invisible="not id or not can_recover_last_assignment"/>
+
+                <field name="can_recover_last_assignment" invisible="1"/>
+                <field name="brokerage_next_action" invisible="1"/>
+
             </xpath>
 
             <!-- =================================================
@@ -67,11 +94,9 @@
 
                 <field name="external_lead_id" readonly="1"/>
 
-                <field name="lead_status_id"
-                       options="{'no_create': True}"/>
+                <field name="lead_status_id"/>
 
-                <field name="lead_quality_id"
-                       options="{'no_create': True}"/>
+                <field name="lead_quality_id"/>
 
             </xpath>
 
@@ -130,7 +155,7 @@
                         type="object"
                         class="oe_stat_button"
                         icon="fa-phone-square"
-                        invisible="telephony_call_count == 0">
+                        invisible="1">
 
                     <field name="telephony_call_count"
                            widget="statinfo"
@@ -203,7 +228,7 @@
                               default_order="attempt_datetime desc">
 
                             <field name="attempt_datetime"/>
-                            <field name="method"/>
+                            <field name="method_id"/>
                             <field name="status_id"/>
                             <field name="successful_contact"/>
                             <field name="user_id"/>
@@ -218,7 +243,8 @@
                 </page>
 
                 <page string="PBX Calls"
-                      name="brokerage_telephony_calls">
+                      name="brokerage_telephony_calls"
+                      invisible="1">
 
                     <field name="telephony_call_ids"
                            readonly="1">
@@ -260,14 +286,14 @@
                               default_order="scheduled_start desc">
 
                             <field name="name"/>
-                            <field name="meeting_type"/>
+                            <field name="meeting_type_id"/>
                             <field name="scheduled_start"/>
                             <field name="scheduled_end"/>
                             <field name="state"
                                    widget="badge"/>
                             <field name="developer_id"/>
                             <field name="project_id"/>
-                            <field name="outcome"/>
+                            <field name="outcome_id"/>
                             <field name="next_follow_up_date"/>
 
                         </list>
@@ -359,10 +385,13 @@
                             <field name="source_id"/>
                             <field name="previous_team_id"/>
                             <field name="previous_user_id"/>
+                            <field name="previous_stage_id" optional="show"/>
                             <field name="new_team_id"/>
                             <field name="new_user_id"/>
+                            <field name="new_stage_id" optional="show"/>
                             <field name="assigned_by_id"/>
                             <field name="round_robin_position"/>
+                            <field name="is_recovered"/>
                             <field name="reason"/>
 
                         </list>
@@ -373,6 +402,21 @@
 
             </xpath>
 
+        </field>
+    </record>
+
+    <!-- Keep quotation creation secondary so the current brokerage workflow
+         action is the only primary-highlighted header button. -->
+    <record id="view_crm_lead_form_brokerage_next_step"
+            model="ir.ui.view">
+        <field name="name">crm.lead.form.brokerage.workflow.emphasis</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="sale_crm.crm_case_form_view_oppor"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_sale_quotations_new']"
+                   position="attributes">
+                <attribute name="class" remove="oe_highlight"/>
+            </xpath>
         </field>
     </record>
 
@@ -465,5 +509,79 @@
         </field>
     </record>
 
+    <record id="view_brokerage_assignment_history_list"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.assignment.history.list</field>
+        <field name="model">brokerage.crm.assignment.history</field>
+        <field name="arch" type="xml">
+            <list create="0" edit="0" delete="0"
+                  default_order="assigned_datetime desc, id desc"
+                  decoration-muted="is_recovered">
+                <field name="assigned_datetime"/>
+                <field name="lead_id"/>
+                <field name="assignment_type"/>
+                <field name="previous_team_id"/>
+                <field name="previous_user_id"/>
+                <field name="previous_stage_id" optional="show"/>
+                <field name="new_team_id"/>
+                <field name="new_user_id"/>
+                <field name="new_stage_id" optional="show"/>
+                <field name="assigned_by_id"/>
+                <field name="is_recovered"/>
+                <field name="reason" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_brokerage_assignment_history_form"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.assignment.history.form</field>
+        <field name="model">brokerage.crm.assignment.history</field>
+        <field name="arch" type="xml">
+            <form string="Assignment History" create="0" edit="0" delete="0">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="lead_id"/>
+                            <field name="assignment_type"/>
+                            <field name="assigned_datetime"/>
+                            <field name="assigned_by_id"/>
+                            <field name="reason"/>
+                        </group>
+                        <group>
+                            <field name="source_id"/>
+                            <field name="round_robin_id"/>
+                            <field name="round_robin_position"/>
+                        </group>
+                    </group>
+                    <group string="Assignment Change">
+                        <group string="Before">
+                            <field name="previous_team_id"/>
+                            <field name="previous_user_id"/>
+                            <field name="previous_stage_id"/>
+                        </group>
+                        <group string="After">
+                            <field name="new_team_id"/>
+                            <field name="new_user_id"/>
+                            <field name="new_stage_id"/>
+                        </group>
+                    </group>
+                    <group string="Recovery" invisible="not is_recovered">
+                        <group>
+                            <field name="is_recovered"/>
+                            <field name="recovered_at"/>
+                            <field name="recovered_by_id"/>
+                        </group>
+                        <group>
+                            <field name="recovery_history_id"/>
+                            <field name="recovery_reason"/>
+                        </group>
+                    </group>
+                    <field name="before_snapshot" invisible="1"/>
+                    <field name="after_snapshot" invisible="1"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
 
 </odoo>

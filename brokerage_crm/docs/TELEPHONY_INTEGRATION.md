@@ -174,5 +174,5 @@ history/call identifier as `external_call_id` or `parent_call_id`.
 - Provider codes are unique.
 - Production URLs require HTTPS.
 - Agents can read only their own call history.
-- Sales Managers can read all Brokerage call history.
+- Configuration Managers can read all Brokerage call history.
 - Raw provider payloads are retained in the Telephony Event Log for audit.

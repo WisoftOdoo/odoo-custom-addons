@@ -13,8 +13,8 @@
                 <group>
                     <field name="lead_id" readonly="1"/>
                     <field name="attempt_datetime"/>
-                    <field name="method"/>
-                    <field name="status_id" options="{'no_create': True}"/>
+                    <field name="method_id"/>
+                    <field name="status_id"/>
                     <field name="remarks"
                            placeholder="Enter the call or contact result..."/>
                 </group>
@@ -64,18 +64,19 @@
                     <group string="Meeting">
                         <field name="lead_id" readonly="1"/>
                         <field name="name"/>
-                        <field name="meeting_type"/>
+                        <field name="meeting_type_id"/>
+                        <field name="meeting_type_location_mode" invisible="1"/>
                         <field name="scheduled_start"/>
                         <field name="scheduled_end"/>
                     </group>
 
                     <group string="Location">
                         <field name="location"
-                               invisible="meeting_type in ['zoom', 'google_meet', 'phone']"/>
+                               invisible="meeting_type_location_mode != 'location'"/>
 
                         <field name="meeting_link"
                                widget="url"
-                               invisible="meeting_type not in ['zoom', 'google_meet']"/>
+                               invisible="meeting_type_location_mode != 'online'"/>
                     </group>
                 </group>
 
@@ -133,7 +134,8 @@
                         <field name="meeting_id" options="{'no_create': True}"/>
                         <field name="actual_start"/>
                         <field name="actual_end"/>
-                        <field name="outcome"/>
+                        <field name="outcome" invisible="1"/>
+                        <field name="outcome_id"/>
                     </group>
 
                     <group string="Developer and Project">
@@ -276,6 +278,47 @@
                ref="view_crm_stage_correction_wizard_form"/>
         <field name="target">new</field>
         <field name="context">{'default_lead_id': active_id}</field>
+    </record>
+
+    <record id="view_crm_assignment_recovery_wizard_form"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.assignment.recovery.wizard.form</field>
+        <field name="model">brokerage.crm.assignment.recovery.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Recover Previous Assignment">
+                <group>
+                    <field name="lead_id"/>
+                    <field name="assignment_history_id" invisible="1"/>
+                </group>
+                <group string="Current Assignment">
+                    <field name="current_team_id"/>
+                    <field name="current_user_id"/>
+                </group>
+                <group string="Restore Snapshot">
+                    <field name="previous_team_id"/>
+                    <field name="previous_user_id"/>
+                    <field name="previous_stage_id"/>
+                </group>
+                <field name="reason"
+                       placeholder="Explain why this reassignment must be recovered..."/>
+                <div class="alert alert-warning" role="alert">
+                    Recovery is allowed only for the latest reassignment while
+                    the lead remains in Assigned with no new activity. It
+                    restores the saved workflow values, keeps all audit logs
+                    and Round Robin counters unchanged, and does not restart
+                    the old SLA timer.
+                </div>
+                <footer>
+                    <button name="action_confirm"
+                            type="object"
+                            string="Recover Assignment"
+                            class="btn-primary"/>
+                    <button string="Cancel"
+                            special="cancel"
+                            class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
     </record>
 
 </odoo>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Eligible Salespeople drive the custom assignment engine, while native
+        Sales Team membership drives non-admin pipeline/stage visibility.
+        Keep existing databases aligned whenever this module is upgraded.
+    -->
+    <function
+        model="brokerage.crm.round.robin"
+        name="_sync_all_standard_team_memberships"
+    />
+</odoo>

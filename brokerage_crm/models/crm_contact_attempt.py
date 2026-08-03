@@ -31,6 +31,7 @@ class BrokerageCrmContactAttempt(models.Model):
     )
 
     method = fields.Selection(
+        string="Legacy Method",
         selection=[
             ("call", "Phone Call"),
             ("whatsapp", "WhatsApp"),
@@ -38,7 +39,19 @@ class BrokerageCrmContactAttempt(models.Model):
             ("sms", "SMS"),
             ("other", "Other"),
         ],
-        required=True,
+        default="call",
+        index=True,
+        help="Legacy compatibility value. Use Contact Method for new records.",
+    )
+
+    method_id = fields.Many2one(
+        comodel_name="brokerage.crm.contact.method",
+        string="Method",
+        default=lambda self: self.env.ref(
+            "brokerage_crm.contact_method_phone_call",
+            raise_if_not_found=False,
+        ),
+        ondelete="restrict",
         index=True,
     )
 
@@ -79,6 +92,46 @@ class BrokerageCrmContactAttempt(models.Model):
         copy=False,
         ondelete="set null",
     )
+
+    @api.model
+    def _method_from_legacy_code(self, code):
+        return self.env["brokerage.crm.contact.method"].search([
+            ("code", "=", code or "call"),
+        ], limit=1)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        legacy_codes = dict(self._fields["method"].selection)
+        for vals in vals_list:
+            if vals.get("method_id"):
+                method = self.env["brokerage.crm.contact.method"].browse(
+                    vals["method_id"]
+                )
+                vals.setdefault(
+                    "method",
+                    method.code if method.code in legacy_codes else "other",
+                )
+            elif vals.get("method"):
+                method = self._method_from_legacy_code(vals["method"])
+                if method:
+                    vals["method_id"] = method.id
+        return super().create(vals_list)
+
+    def write(self, vals):
+        legacy_codes = dict(self._fields["method"].selection)
+        if vals.get("method_id"):
+            method = self.env["brokerage.crm.contact.method"].browse(
+                vals["method_id"]
+            )
+            vals.setdefault(
+                "method",
+                method.code if method.code in legacy_codes else "other",
+            )
+        elif vals.get("method"):
+            method = self._method_from_legacy_code(vals["method"])
+            if method:
+                vals["method_id"] = method.id
+        return super().write(vals)
 
     @api.constrains(
         "status_id",

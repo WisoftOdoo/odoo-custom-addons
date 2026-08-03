@@ -69,8 +69,7 @@
                             <field name="source_category"/>
                             <field name="team_id"
                                    options="{'no_create': True}"/>
-                            <field name="quality_id"
-                                   options="{'no_create': True}"/>
+                            <field name="quality_id"/>
                         </group>
                     </group>
 
@@ -93,6 +92,7 @@
                             <field name="activity_type_id"
                                    options="{'no_create': True}"/>
                             <field name="escalation_user_id"
+                                   string="Team Leader Escalation Override"
                                    options="{'no_create': True}"/>
                         </group>
 
@@ -103,9 +103,9 @@
                     </group>
 
                     <div class="alert alert-warning" role="alert">
-                        Keep the SLA scheduled action disabled until
-                        SLA checking, escalation, and reassignment logic
-                        have been fully tested.
+                        SLA minutes count only during the lead's Sales Team
+                        working calendar. Solo campaign exits use an isolated
+                        queue and do not consume existing Round Robin counters.
                     </div>
 
                 </sheet>

@@ -6,6 +6,7 @@ from datetime import timedelta
 import requests
 
 from odoo import api, fields, models, modules, _
+from odoo.exceptions import AccessError, ValidationError
 
 
 _logger = logging.getLogger(__name__)
@@ -39,6 +40,14 @@ class BrokerageWhatsAppNotification(models.Model):
             ("reminder_2", "SLA Reminder 2"),
             ("reminder_3", "SLA Reminder 3"),
             ("escalation", "SLA Escalation"),
+            (
+                "team_leader_escalation",
+                "SLA Team Leader Escalation",
+            ),
+            (
+                "manager_escalation",
+                "Legacy SLA Manager Escalation",
+            ),
         ],
         required=True,
         readonly=True,
@@ -64,11 +73,30 @@ class BrokerageWhatsAppNotification(models.Model):
         index=True,
     )
     attempt_count = fields.Integer(default=0, readonly=True)
+    retry_cycle_attempt_count = fields.Integer(
+        string="Attempts in Current Retry Cycle",
+        default=0,
+        readonly=True,
+    )
+    manual_retry_count = fields.Integer(
+        string="Manual Retries",
+        default=0,
+        readonly=True,
+    )
     next_attempt_at = fields.Datetime(readonly=True, index=True)
+    last_attempt_at = fields.Datetime(readonly=True)
     sent_at = fields.Datetime(readonly=True)
     http_status = fields.Integer(readonly=True)
     external_message_id = fields.Char(readonly=True)
     response_message = fields.Text(readonly=True)
+    failure_alerted_at = fields.Datetime(readonly=True, copy=False)
+    failure_alert_user_id = fields.Many2one(
+        comodel_name="res.users",
+        string="Failure Alerted To",
+        readonly=True,
+        copy=False,
+        ondelete="set null",
+    )
 
     _deduplication_key_unique = models.Constraint(
         "UNIQUE(deduplication_key)",
@@ -182,6 +210,12 @@ class BrokerageWhatsAppNotification(models.Model):
             "reminder_2": _("CRM SLA Reminder 2"),
             "reminder_3": _("CRM SLA Reminder 3"),
             "escalation": _("CRM SLA Manager Escalation"),
+            "team_leader_escalation": _(
+                "CRM SLA Team Leader Escalation"
+            ),
+            "manager_escalation": _(
+                "Legacy CRM SLA Manager Escalation"
+            ),
         }[event_type]
         body = "\n".join([
             "*%s*" % title,
@@ -259,9 +293,9 @@ class BrokerageWhatsAppNotification(models.Model):
         self.env.cr.execute(
             """
             SELECT id
-              FROM brokerage_whatsapp_notification
+             FROM brokerage_whatsapp_notification
              WHERE state IN ('pending', 'failed')
-               AND attempt_count < %s
+               AND retry_cycle_attempt_count < %s
                AND (next_attempt_at IS NULL OR next_attempt_at <= %s)
              ORDER BY create_date, id
              FOR UPDATE SKIP LOCKED
@@ -304,6 +338,7 @@ class BrokerageWhatsAppNotification(models.Model):
             self._mark_failed(
                 _("UltraMsg is enabled but its credentials are incomplete."),
                 max_attempts,
+                permanent=True,
             )
             return False
 
@@ -349,7 +384,11 @@ class BrokerageWhatsAppNotification(models.Model):
             self.write({
                 "state": "sent",
                 "attempt_count": self.attempt_count + 1,
+                "retry_cycle_attempt_count": (
+                    self.retry_cycle_attempt_count + 1
+                ),
                 "next_attempt_at": False,
+                "last_attempt_at": fields.Datetime.now(),
                 "sent_at": fields.Datetime.now(),
                 "http_status": response.status_code,
                 "external_message_id": str(
@@ -367,21 +406,157 @@ class BrokerageWhatsAppNotification(models.Model):
             },
             max_attempts,
             http_status=response.status_code,
+            permanent=(
+                400 <= response.status_code < 500
+                and response.status_code != 429
+            ),
         )
         return False
 
-    def _mark_failed(self, message, max_attempts, http_status=False):
+    def _mark_failed(
+        self,
+        message,
+        max_attempts,
+        http_status=False,
+        permanent=False,
+    ):
         self.ensure_one()
         attempt_count = self.attempt_count + 1
-        retry_delay = min(30, 5 * attempt_count)
+        retry_cycle_attempt_count = (
+            max_attempts
+            if permanent
+            else self.retry_cycle_attempt_count + 1
+        )
+        base_delay = max(
+            1,
+            int(self._get_parameter(
+                "ultramsg_retry_base_minutes", 5
+            ) or 5),
+        )
+        maximum_delay = max(
+            base_delay,
+            int(self._get_parameter(
+                "ultramsg_retry_max_minutes", 60
+            ) or 60),
+        )
+        retry_delay = min(
+            maximum_delay,
+            base_delay * (2 ** max(0, retry_cycle_attempt_count - 1)),
+        )
+        terminal_failure = retry_cycle_attempt_count >= max_attempts
         self.write({
             "state": "failed",
             "attempt_count": attempt_count,
+            "retry_cycle_attempt_count": retry_cycle_attempt_count,
             "next_attempt_at": (
                 fields.Datetime.now() + timedelta(minutes=retry_delay)
-                if attempt_count < max_attempts
+                if not terminal_failure
                 else False
             ),
+            "last_attempt_at": fields.Datetime.now(),
             "http_status": http_status or False,
             "response_message": str(message)[:2000],
         })
+        if terminal_failure:
+            self._alert_terminal_failure()
+
+    def _alert_terminal_failure(self):
+        self.ensure_one()
+        if self.failure_alerted_at:
+            return
+
+        configured_user_id = int(
+            self._get_parameter(
+                "ultramsg_failure_alert_user_id", 0
+            ) or 0
+        )
+        alert_user = self.env["res.users"].sudo().browse(
+            configured_user_id
+        ).exists()
+        if not alert_user:
+            alert_user = self.lead_id.sudo().team_id.user_id
+        if alert_user and not alert_user.active:
+            alert_user = self.env["res.users"]
+
+        alert_time = fields.Datetime.now()
+        self.sudo().write({
+            "failure_alerted_at": alert_time,
+            "failure_alert_user_id": alert_user.id or False,
+        })
+        self.lead_id.sudo().message_post(
+            body=_(
+                "WhatsApp delivery permanently failed for %(recipient)s "
+                "after %(attempts)s attempt(s). Open the WhatsApp Delivery "
+                "Log to review the error and retry after correcting it."
+            ) % {
+                "recipient": self.recipient_user_id.display_name,
+                "attempts": self.attempt_count,
+            },
+            subtype_xmlid="mail.mt_note",
+        )
+        if alert_user:
+            activity_type = self.env.ref(
+                "mail.mail_activity_data_todo",
+                raise_if_not_found=False,
+            )
+            model = self.env["ir.model"].sudo()._get("crm.lead")
+            if activity_type and model:
+                self.env["mail.activity"].sudo().create({
+                    "activity_type_id": activity_type.id,
+                    "summary": _("WhatsApp delivery failed"),
+                    "note": _(
+                        "Notification %(notification)s failed permanently. "
+                        "Last error: %(error)s"
+                    ) % {
+                        "notification": self.display_name,
+                        "error": self.response_message or "-",
+                    },
+                    "user_id": alert_user.id,
+                    "res_model_id": model.id,
+                    "res_id": self.lead_id.id,
+                    "date_deadline": fields.Date.context_today(self),
+                })
+
+    def action_retry_now(self):
+        if not self.env.user.has_group(
+            "brokerage_crm.group_brokerage_sales_manager"
+        ):
+            raise AccessError(_(
+                "Only a Brokerage Configuration Manager can retry WhatsApp "
+                "delivery."
+            ))
+        enabled = self._is_enabled()
+        for notification in self:
+            if notification.state not in ("failed", "skipped"):
+                raise ValidationError(_(
+                    "Only failed or skipped WhatsApp notifications can be "
+                    "retried."
+                ))
+            if not enabled:
+                raise ValidationError(_(
+                    "Enable UltraMsg in CRM Settings before retrying."
+                ))
+            phone = self._phone_for_user(notification.recipient_user_id)
+            if not phone:
+                raise ValidationError(_(
+                    "The recipient still has no valid Mobile or Phone number."
+                ))
+            notification.sudo().write({
+                "recipient_phone": phone,
+                "state": "pending",
+                "retry_cycle_attempt_count": 0,
+                "manual_retry_count": notification.manual_retry_count + 1,
+                "next_attempt_at": fields.Datetime.now(),
+                "sent_at": False,
+                "http_status": False,
+                "external_message_id": False,
+                "failure_alerted_at": False,
+                "failure_alert_user_id": False,
+            })
+        cron = self.env.ref(
+            "brokerage_crm.ir_cron_brokerage_whatsapp",
+            raise_if_not_found=False,
+        )
+        if cron:
+            cron.sudo()._trigger()
+        return True

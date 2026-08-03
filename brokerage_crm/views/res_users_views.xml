@@ -8,7 +8,7 @@
             <xpath expr="//page[@name='calendar']" position="after">
                 <page name="brokerage_telephony"
                       string="Brokerage Telephony"
-                      invisible="share">
+                      invisible="1">
                     <group>
                         <group string="PBX Identity">
                             <field name="telephony_provider_id"

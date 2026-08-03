@@ -22,10 +22,19 @@ class CrmSlaLog(models.Model):
             ("reminder_2", "Reminder 2"),
             ("reminder_3", "Reminder 3"),
             ("escalation", "Escalation"),
+            ("team_leader_escalation", "Team Leader Escalation"),
+            ("manager_escalation", "Legacy Manager Escalation"),
             ("reassignment", "Reassignment"),
         ],
         required=True,
         default="reminder_1",
+        index=True,
+    )
+    target_user_id = fields.Many2one(
+        comodel_name="res.users",
+        string="Notification Recipient",
+        readonly=True,
+        ondelete="set null",
         index=True,
     )
 

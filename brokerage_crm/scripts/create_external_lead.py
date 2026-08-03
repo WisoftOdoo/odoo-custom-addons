@@ -18,6 +18,15 @@ def main():
     parser.add_argument("--phone", required=True)
     parser.add_argument("--email")
     parser.add_argument("--source", default="Meta")
+    parser.add_argument(
+        "--assignment-type",
+        choices=("manual", "round_robin"),
+        default="manual",
+        help=(
+            "Use round_robin to request automatic assignment; "
+            "the default creates an unassigned/manual lead."
+        ),
+    )
     parser.add_argument("--external-lead-id")
     parser.add_argument("--team-id", type=int)
     parser.add_argument("--notes")
@@ -29,6 +38,7 @@ def main():
         "phone": args.phone,
         "email": args.email,
         "source": args.source,
+        "assignment_type": args.assignment_type,
         "external_lead_id": args.external_lead_id,
         "team_id": args.team_id,
         "notes": args.notes,

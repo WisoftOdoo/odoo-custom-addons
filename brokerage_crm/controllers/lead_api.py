@@ -29,20 +29,27 @@ class BrokerageLeadApi(http.Controller):
         ).strip()
         phone = str(payload.get("phone") or payload.get("mobile") or "").strip()
         source_name = str(payload.get("source") or "Meta").strip()
+        assignment_type = str(
+            payload.get("assignment_type") or "manual"
+        ).strip().lower()
         if not customer_name:
             return self._error("customer_name is required.", 400)
         if not phone:
             return self._error("phone is required.", 400)
         if not source_name:
             return self._error("source is required.", 400)
+        if assignment_type not in {"manual", "round_robin"}:
+            return self._error(
+                "assignment_type must be either 'manual' or 'round_robin'.",
+                400,
+            )
 
         source = request.env["utm.source"].sudo().search([
             ("name", "=ilike", source_name),
-            ("round_robin_applicable", "=", True),
         ], limit=1)
         if not source:
             return self._error(
-                "An active Round Robin lead source with this name was not found.",
+                "A lead source with this name was not found.",
                 404,
             )
 
@@ -73,13 +80,23 @@ class BrokerageLeadApi(http.Controller):
             "description": description or False,
             "source_id": source.id,
             "external_lead_id": external_lead_id or False,
-            "assignment_type": "round_robin",
+            "assignment_type": assignment_type,
+            # Do not let a public API request inherit Odoo's Public user or
+            # the public user's default Sales Team.
+            "user_id": False,
+            "team_id": team.id if team else False,
             # External brokerage enquiries are worked directly in the CRM
             # pipeline; Odoo's separate lead qualification screen is not used.
             "type": "opportunity",
         }
-        if team:
-            values["team_id"] = team.id
+        if assignment_type == "manual":
+            new_stage = self._find_new_lead_stage(team)
+            if not new_stage:
+                return self._error(
+                    "Configure a New Lead CRM stage before creating manual leads.",
+                    422,
+                )
+            values["stage_id"] = new_stage.id
 
         try:
             with request.env.cr.savepoint():
@@ -107,6 +124,24 @@ class BrokerageLeadApi(http.Controller):
         ], limit=1)
 
     @staticmethod
+    def _find_new_lead_stage(team):
+        stage_model = request.env["crm.stage"].sudo()
+        domain = [("brokerage_code", "=", "new")]
+        if team:
+            return stage_model.search(
+                domain + [
+                    "|",
+                    ("team_ids", "=", False),
+                    ("team_ids", "in", team.ids),
+                ],
+                order="sequence, id",
+                limit=1,
+            )
+        # Unassigned API leads may use the configured brokerage New Lead
+        # stage even when that stage is limited to operational sales teams.
+        return stage_model.search(domain, order="sequence, id", limit=1)
+
+    @staticmethod
     def _success(lead, duplicate, status):
         return request.make_json_response({
             "success": True,
@@ -115,6 +150,9 @@ class BrokerageLeadApi(http.Controller):
                 "id": lead.id,
                 "name": lead.name,
                 "type": lead.type,
+                "assignment_type": lead.assignment_type,
+                "source_id": lead.source_id.id or None,
+                "source": lead.source_id.display_name or None,
                 "salesperson_id": lead.user_id.id or None,
                 "salesperson": lead.user_id.display_name or None,
                 "team_id": lead.team_id.id or None,

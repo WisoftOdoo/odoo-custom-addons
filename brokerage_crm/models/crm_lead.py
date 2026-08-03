@@ -1,4 +1,3 @@
-from datetime import timedelta
 import logging
 
 from odoo import api, fields, models, _
@@ -58,6 +57,7 @@ class CrmLead(models.Model):
                 "not_interested_reassignment",
                 "Not Interested Reassignment",
             ),
+            ("solo_campaign", "Solo Campaign"),
         ],
         tracking=True,
         index=True,
@@ -81,6 +81,11 @@ class CrmLead(models.Model):
             "Moving a progressed lead back to Assigned does not reactivate "
             "an old SLA timer."
         ),
+    )
+
+    can_recover_last_assignment = fields.Boolean(
+        string="Can Recover Last Assignment",
+        compute="_compute_can_recover_last_assignment",
     )
 
     first_contact_datetime = fields.Datetime(
@@ -120,6 +125,25 @@ class CrmLead(models.Model):
 
     assignment_history_count = fields.Integer(
         compute="_compute_brokerage_counts",
+    )
+
+    brokerage_next_action = fields.Selection(
+        selection=[
+            ("contact_attempt", "Record Contact Attempt"),
+            ("schedule_meeting", "Schedule Meeting"),
+            ("complete_meeting", "Complete Meeting"),
+        ],
+        compute="_compute_brokerage_next_action",
+        string="Next Workflow Action",
+    )
+
+    # Retained as a non-stored compatibility field so databases upgrading
+    # from 19.0.1.14.3 can validate the previous inherited view before that
+    # view is replaced later in the same module upgrade. It is intentionally
+    # absent from the final form view.
+    brokerage_next_step_hint = fields.Char(
+        string="Next Workflow Step",
+        compute="_compute_brokerage_next_step_hint",
     )
 
     '''Customer qualification fields'''
@@ -261,6 +285,26 @@ class CrmLead(models.Model):
         inverse_name="lead_id",
     )
 
+    _brokerage_assignment_snapshot_fields = (
+        "user_id",
+        "team_id",
+        "stage_id",
+        "assignment_type",
+        "assigned_datetime",
+        "sla_cycle_active",
+        "first_contact_datetime",
+        "last_status_update",
+        "last_meaningful_update",
+        "lead_status_id",
+        "forecast_remarks",
+        "final_developer_id",
+        "final_project_id",
+        "final_unit_type",
+        "estimated_property_value",
+        "expected_booking_date",
+        "not_interested_reassignment_done",
+    )
+
     @api.model_create_multi
     def create(self, vals_list):
         round_robin_flags = []
@@ -290,7 +334,12 @@ class CrmLead(models.Model):
 
     def write(self, vals):
         previous = {
-            lead.id: (lead.user_id, lead.team_id, lead.assignment_type)
+            lead.id: (
+                lead.user_id,
+                lead.team_id,
+                lead.assignment_type,
+                lead._brokerage_assignment_snapshot(),
+            )
             for lead in self
         }
         stage = self.env["crm.stage"].browse(vals.get("stage_id"))
@@ -327,7 +376,7 @@ class CrmLead(models.Model):
         if "user_id" in vals and not self.env.context.get("skip_assignment_history"):
             now = fields.Datetime.now()
             for lead in self:
-                old_user, old_team, old_type = previous[lead.id]
+                old_user, old_team, old_type, old_snapshot = previous[lead.id]
                 if lead.user_id != old_user:
                     lead.with_context(skip_assignment_history=True).write({
                         "assigned_datetime": now if lead.user_id else False,
@@ -335,10 +384,21 @@ class CrmLead(models.Model):
                         "last_meaningful_update": now if lead.user_id else False,
                     })
                     if lead.user_id:
-                        lead._record_direct_assignment(old_user, lead.user_id, old_team)
+                        lead._record_direct_assignment(
+                            old_user,
+                            lead.user_id,
+                            old_team,
+                            before_snapshot=old_snapshot,
+                        )
         return result
 
-    def _record_direct_assignment(self, previous_user, new_user, previous_team=False):
+    def _record_direct_assignment(
+        self,
+        previous_user,
+        new_user,
+        previous_team=False,
+        before_snapshot=False,
+    ):
         self.ensure_one()
         if not self.team_id:
             return
@@ -353,6 +413,14 @@ class CrmLead(models.Model):
             "assigned_datetime": self.assigned_datetime or fields.Datetime.now(),
             "assigned_by_id": self.env.user.id,
             "reason": _("Direct assignment"),
+            "previous_stage_id": (
+                before_snapshot.get("stage_id")
+                if before_snapshot
+                else False
+            ),
+            "new_stage_id": self.stage_id.id or False,
+            "before_snapshot": before_snapshot or False,
+            "after_snapshot": self._brokerage_assignment_snapshot(),
         })
         self._queue_brokerage_whatsapp_assignment(
             new_user,
@@ -410,8 +478,28 @@ class CrmLead(models.Model):
 
     def _apply_round_robin_assignment(self):
         for lead in self:
-            team = False if self.env.context.get("force_global_round_robin") else (
-                lead.team_id or lead.source_id.default_team_id
+            source_team = lead.source_id.default_team_id
+            # Odoo may inject its normal default team during create even when
+            # the API caller did not send team_id. An explicitly configured
+            # solo source must win over that implicit default.
+            routed_team = (
+                source_team
+                if (
+                    self.env.context.get("force_global_round_robin")
+                    and source_team.brokerage_solo_campaign
+                )
+                else (lead.team_id or source_team)
+            )
+            if routed_team and routed_team.brokerage_solo_campaign:
+                routed_team.sudo().assign_brokerage_solo_lead(
+                    lead.sudo(),
+                    reason=_("Solo campaign lead assignment"),
+                )
+                continue
+            team = (
+                False
+                if self.env.context.get("force_global_round_robin")
+                else routed_team
             )
             round_robin = self.env["brokerage.crm.round.robin"].sudo()
             if team:
@@ -419,19 +507,10 @@ class CrmLead(models.Model):
                     ("team_id", "=", team.id), ("active", "=", True)
                 ], limit=1)
             else:
-                # Serialize team selection as well as the per-team agent
-                # selection. This keeps simultaneous external submissions fair.
-                self.env.cr.execute(
-                    "SELECT pg_advisory_xact_lock(hashtext(%s))",
-                    ["brokerage.crm.round.robin.dispatch"],
-                )
-                configurations = round_robin.search(
-                    [("active", "=", True)],
-                    order="assignment_count, sequence, id",
-                )
-                rule = configurations.filtered(
-                    lambda configuration: configuration._get_eligible_users()
-                )[:1]
+                # New external leads rotate through teams by configured
+                # sequence. Assignment totals remain reporting values only.
+                round_robin.assign_lead_by_normal_sequence(lead.sudo())
+                continue
             if not rule:
                 scope = team.display_name if team else _("any Sales Team")
                 raise ValidationError(_(
@@ -457,6 +536,46 @@ class CrmLead(models.Model):
             "not_interested": "not_interested",
         }
         return aliases.get(normalized)
+
+    @api.depends(
+        "active",
+        "type",
+        "won_status",
+        "stage_id",
+        "stage_id.brokerage_code",
+        "user_id",
+    )
+    def _compute_brokerage_next_action(self):
+        action_by_stage = {
+            "assigned": "contact_attempt",
+            "contact_attempted": "contact_attempt",
+            "contacted": "schedule_meeting",
+            "meeting_scheduled": "complete_meeting",
+        }
+        for lead in self:
+            is_open_opportunity = (
+                lead.type == "opportunity"
+                and lead.active
+                and lead.won_status == "pending"
+            )
+            lead.brokerage_next_action = (
+                action_by_stage.get(lead._stage_code(lead.stage_id))
+                if is_open_opportunity
+                else False
+            )
+
+    @api.depends("brokerage_next_action")
+    def _compute_brokerage_next_step_hint(self):
+        compatibility_labels = {
+            "contact_attempt": _("Next: Record Contact Attempt"),
+            "schedule_meeting": _("Next: Schedule Meeting"),
+            "complete_meeting": _("Next: Complete Meeting"),
+        }
+        for lead in self:
+            lead.brokerage_next_step_hint = compatibility_labels.get(
+                lead.brokerage_next_action,
+                False,
+            )
 
     def _find_brokerage_stage(self, code, team=False):
         self.ensure_one()
@@ -504,6 +623,48 @@ class CrmLead(models.Model):
             "expected_booking_date": False,
         }
 
+    def _brokerage_assignment_snapshot(self):
+        """Return a JSON-safe snapshot of fields changed by assignment."""
+        self.ensure_one()
+        snapshot = {}
+        for field_name in self._brokerage_assignment_snapshot_fields:
+            field = self._fields[field_name]
+            value = self[field_name]
+            if field.type == "many2one":
+                snapshot[field_name] = value.id or False
+            elif field.type == "datetime":
+                snapshot[field_name] = (
+                    fields.Datetime.to_string(value) if value else False
+                )
+            elif field.type == "date":
+                snapshot[field_name] = (
+                    fields.Date.to_string(value) if value else False
+                )
+            else:
+                snapshot[field_name] = value
+        return snapshot
+
+    def _brokerage_assignment_snapshot_values(self, snapshot):
+        """Convert a stored assignment snapshot back to ORM write values."""
+        self.ensure_one()
+        values = {}
+        snapshot = snapshot or {}
+        for field_name in self._brokerage_assignment_snapshot_fields:
+            if field_name not in snapshot:
+                continue
+            field = self._fields[field_name]
+            value = snapshot[field_name]
+            if field.type == "many2one":
+                record = (
+                    self.env[field.comodel_name].browse(value).exists()
+                    if value
+                    else self.env[field.comodel_name]
+                )
+                values[field_name] = record.id or False
+            else:
+                values[field_name] = value
+        return values
+
     def _current_assignment_contact_attempts(self):
         self.ensure_one()
         domain = [("lead_id", "=", self.id)]
@@ -521,7 +682,13 @@ class CrmLead(models.Model):
         self.ensure_one()
         domain = [("lead_id", "=", self.id)]
         if self.assigned_datetime:
-            domain.append(("create_date", ">=", self.assigned_datetime))
+            domain.extend([
+                "|",
+                ("recorded_datetime", ">=", self.assigned_datetime),
+                "&",
+                ("recorded_datetime", "=", False),
+                ("create_date", ">=", self.assigned_datetime),
+            ])
         if self.user_id:
             domain.append(("create_uid", "=", self.user_id.id))
         return self.env["brokerage.crm.meeting"].search(domain)
@@ -615,6 +782,7 @@ class CrmLead(models.Model):
                         "round_robin",
                         "reassignment",
                         "not_interested_reassignment",
+                        "solo_campaign",
                     ],
                 ),
             ]
@@ -635,18 +803,34 @@ class CrmLead(models.Model):
     def _process_sla_rule(self, rule, now):
         self.ensure_one()
         assignment_datetime = self.assigned_datetime
-        elapsed = (now - assignment_datetime).total_seconds() / 60
+        elapsed = self._brokerage_sla_elapsed_minutes(now)
+        assigned_to_team_leader = (
+            self.team_id
+            and self.user_id
+            and self.user_id == self.team_id._brokerage_team_leader()
+        )
         events = [
             ("reminder_1", rule.reminder_1_minutes),
             ("reminder_2", rule.reminder_2_minutes),
             ("reminder_3", rule.reminder_3_minutes),
-            ("escalation", rule.escalation_minutes),
-            ("reassignment", rule.reassignment_minutes),
         ]
+        if assigned_to_team_leader:
+            # Escalating a Team-Leader-owned lead back to the same Team
+            # Leader is redundant. Replace that hierarchy step with the
+            # same-team-first reassignment.
+            events.append((
+                "reassignment",
+                rule.escalation_minutes or rule.reassignment_minutes,
+            ))
+        else:
+            events.extend([
+                ("team_leader_escalation", rule.escalation_minutes),
+                ("reassignment", rule.reassignment_minutes),
+            ])
         for event_type, minutes in events:
             if not minutes or elapsed < minutes:
                 continue
-            deadline = assignment_datetime + timedelta(minutes=minutes)
+            deadline = self._brokerage_sla_deadline(minutes)
             existing = self.env["brokerage.crm.sla.log"].search_count([
                 ("lead_id", "=", self.id), ("rule_id", "=", rule.id),
                 ("event_type", "=", event_type),
@@ -656,16 +840,33 @@ class CrmLead(models.Model):
                 continue
 
             if event_type == "reassignment":
-                reassigned_user = self.env[
-                    "brokerage.crm.round.robin"
-                ].assign_lead_cross_team(
-                    self,
-                    preferred_team=rule.reassignment_team_id,
-                    reason=_(
-                        "Automatic cross-team reassignment after "
-                        "manager escalation"
-                    ),
+                reason = (
+                    _(
+                        "Automatic reassignment because the "
+                        "assigned salesperson is the Team Leader"
+                    )
+                    if assigned_to_team_leader
+                    else _(
+                        "Automatic reassignment after Team Leader "
+                        "escalation"
+                    )
                 )
+                if self.team_id.brokerage_solo_campaign:
+                    reassigned_user = self.env[
+                        "crm.team"
+                    ].assign_brokerage_solo_cross_team(
+                        self,
+                        preferred_team=rule.reassignment_team_id,
+                        reason=reason,
+                    )
+                else:
+                    reassigned_user = self.env[
+                        "brokerage.crm.round.robin"
+                    ].assign_lead_cross_team(
+                        self,
+                        preferred_team=rule.reassignment_team_id,
+                        reason=reason,
+                    )
                 if not reassigned_user:
                     continue
                 self.env["brokerage.crm.sla.log"].create({
@@ -687,25 +888,34 @@ class CrmLead(models.Model):
                 continue
 
             target_user = self.user_id
-            if event_type == "escalation":
-                target_user = (
-                    rule.escalation_user_id
-                    or self.team_id.user_id
-                    or self.user_id
+            if event_type == "team_leader_escalation":
+                target_user = self._brokerage_sla_escalation_target(
+                    rule,
                 )
             self.env["brokerage.crm.sla.log"].create({
                 "lead_id": self.id, "rule_id": rule.id,
                 "assignment_datetime": assignment_datetime,
                 "deadline": deadline, "state": "breached",
                 "completed_at": now, "event_type": event_type,
+                "target_user_id": target_user.id,
             })
+            event_label = {
+                "reminder_1": _("Reminder 1"),
+                "reminder_2": _("Reminder 2"),
+                "reminder_3": _("Reminder 3"),
+                "team_leader_escalation": _(
+                    "Team Leader Escalation"
+                ),
+            }[event_type]
             self.env["mail.activity"].create({
                 "res_model_id": self.env["ir.model"]._get_id("crm.lead"),
                 "res_id": self.id,
                 "activity_type_id": rule.activity_type_id.id,
                 "user_id": target_user.id,
                 "date_deadline": fields.Date.context_today(self),
-                "summary": _("SLA %s: update assigned lead") % event_type.replace("_", " ").title(),
+                "summary": _(
+                    "SLA %s: update assigned lead"
+                ) % event_label,
                 "note": _("No contact attempt or qualifying update was recorded within %s minutes.") % minutes,
             })
             self._queue_brokerage_whatsapp_sla(
@@ -717,11 +927,65 @@ class CrmLead(models.Model):
             )
             self.message_post(
                 body=_("SLA %(event)s triggered after %(minutes)s minutes.") % {
-                    "event": event_type.replace("_", " ").title(),
+                    "event": event_label,
                     "minutes": minutes,
                 },
                 subtype_xmlid="mail.mt_note",
             )
+
+    def _brokerage_sla_escalation_target(self, rule):
+        """Resolve the final escalation recipient: the Team Leader."""
+        self.ensure_one()
+        team = self.team_id
+        team_leader = team._brokerage_team_leader() if team else (
+            self.env["res.users"]
+        )
+        return (
+            rule.escalation_user_id
+            or team_leader
+            or self.user_id
+        )
+
+    def _brokerage_sla_elapsed_minutes(self, now):
+        """Count elapsed SLA time only inside the team's working calendar."""
+        self.ensure_one()
+        calendar = (
+            self.team_id._brokerage_sla_calendar()
+            if self.team_id
+            else self.env.company.resource_calendar_id
+        )
+        if not calendar:
+            return (
+                (now - self.assigned_datetime).total_seconds() / 60
+            )
+        duration = calendar.get_work_duration_data(
+            self.assigned_datetime,
+            now,
+            compute_leaves=True,
+        )
+        return duration["hours"] * 60
+
+    def _brokerage_sla_deadline(self, minutes):
+        """Return the wall-clock deadline after N working minutes."""
+        self.ensure_one()
+        calendar = (
+            self.team_id._brokerage_sla_calendar()
+            if self.team_id
+            else self.env.company.resource_calendar_id
+        )
+        if not calendar:
+            from datetime import timedelta
+            return self.assigned_datetime + timedelta(minutes=minutes)
+        deadline = calendar.plan_hours(
+            minutes / 60,
+            self.assigned_datetime,
+            compute_leaves=True,
+        )
+        return (
+            fields.Datetime.to_datetime(deadline)
+            if deadline
+            else self.assigned_datetime
+        )
 
     def _clear_open_brokerage_sla_activities(self):
         activities = self.env["mail.activity"].search([
@@ -742,6 +1006,37 @@ class CrmLead(models.Model):
             lead.meeting_count = len(lead.brokerage_meeting_ids)
             lead.assignment_history_count = len(
                 lead.assignment_history_ids
+            )
+
+    @api.depends(
+        "user_id",
+        "team_id",
+        "stage_id",
+        "assignment_history_ids.is_recovered",
+        "assignment_history_ids.before_snapshot",
+    )
+    def _compute_can_recover_last_assignment(self):
+        recoverable_types = (
+            "reassignment",
+            "not_interested_reassignment",
+        )
+        history_model = self.env[
+            "brokerage.crm.assignment.history"
+        ].sudo()
+        for lead in self:
+            history = history_model.search(
+                [("lead_id", "=", lead.id)],
+                order="assigned_datetime desc, id desc",
+                limit=1,
+            )
+            lead.can_recover_last_assignment = bool(
+                history
+                and history.assignment_type in recoverable_types
+                and history.before_snapshot
+                and not history.is_recovered
+                and lead.user_id == history.new_user_id
+                and lead.team_id == history.new_team_id
+                and lead._stage_code(lead.stage_id) == "assigned"
             )
 
     @api.constrains("budget_from", "budget_to")
@@ -863,5 +1158,28 @@ class CrmLead(models.Model):
                 "create": False,
                 "edit": False,
                 "delete": False,
+            },
+        }
+
+    def action_recover_last_assignment(self):
+        self.ensure_one()
+        history = self.env[
+            "brokerage.crm.assignment.history"
+        ].sudo().search(
+            [("lead_id", "=", self.id)],
+            order="assigned_datetime desc, id desc",
+            limit=1,
+        )
+        if not history:
+            raise ValidationError(_("No assignment is available to recover."))
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Recover Previous Assignment"),
+            "res_model": "brokerage.crm.assignment.recovery.wizard",
+            "view_mode": "form",
+            "target": "new",
+            "context": {
+                "default_lead_id": self.id,
+                "default_assignment_history_id": history.id,
             },
         }

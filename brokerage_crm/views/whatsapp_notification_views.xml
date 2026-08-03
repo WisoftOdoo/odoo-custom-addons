@@ -11,6 +11,12 @@
                   decoration-success="state == 'sent'"
                   decoration-danger="state == 'failed'"
                   decoration-muted="state == 'skipped'">
+                <button name="action_retry_now"
+                        type="object"
+                        string="Retry"
+                        icon="fa-refresh"
+                        groups="brokerage_crm.group_brokerage_sales_manager"
+                        invisible="state not in ('failed', 'skipped')"/>
                 <field name="create_date"/>
                 <field name="name"/>
                 <field name="lead_id"/>
@@ -19,6 +25,9 @@
                 <field name="notification_type"/>
                 <field name="state" widget="badge"/>
                 <field name="attempt_count"/>
+                <field name="retry_cycle_attempt_count" optional="hide"/>
+                <field name="manual_retry_count" optional="hide"/>
+                <field name="next_attempt_at" optional="show"/>
                 <field name="sent_at"/>
             </list>
         </field>
@@ -30,6 +39,14 @@
         <field name="model">brokerage.whatsapp.notification</field>
         <field name="arch" type="xml">
             <form string="WhatsApp Delivery" create="0" edit="0" delete="0">
+                <header>
+                    <button name="action_retry_now"
+                            type="object"
+                            string="Retry Now"
+                            class="btn-primary"
+                            groups="brokerage_crm.group_brokerage_sales_manager"
+                            invisible="state not in ('failed', 'skipped')"/>
+                </header>
                 <sheet>
                     <div class="oe_title">
                         <h1><field name="name"/></h1>
@@ -44,10 +61,15 @@
                         <group>
                             <field name="state" widget="badge"/>
                             <field name="attempt_count"/>
+                            <field name="retry_cycle_attempt_count"/>
+                            <field name="manual_retry_count"/>
                             <field name="next_attempt_at"/>
+                            <field name="last_attempt_at"/>
                             <field name="sent_at"/>
                             <field name="http_status"/>
                             <field name="external_message_id"/>
+                            <field name="failure_alerted_at"/>
+                            <field name="failure_alert_user_id"/>
                         </group>
                     </group>
                     <group>

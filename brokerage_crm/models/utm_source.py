@@ -19,10 +19,6 @@ class UtmSource(models.Model):
         required=True,
     )
 
-    round_robin_applicable = fields.Boolean(
-        string="Apply Round Robin",
-    )
-
     sla_applicable = fields.Boolean(
         string="Apply SLA",
         default=True,

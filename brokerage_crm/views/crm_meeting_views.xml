@@ -10,7 +10,7 @@
         <field name="name">brokerage.crm.meeting.list</field>
         <field name="model">brokerage.crm.meeting</field>
         <field name="arch" type="xml">
-            <list string="Brokerage Meetings"
+            <list string="Meetings"
                   default_order="scheduled_start desc"
                   decoration-success="state == 'completed'"
                   decoration-warning="state == 'rescheduled'"
@@ -20,12 +20,12 @@
                 <field name="name"/>
                 <field name="lead_id"/>
                 <field name="responsible_user_id"/>
-                <field name="meeting_type"/>
+                <field name="meeting_type_id"/>
                 <field name="scheduled_start"/>
                 <field name="scheduled_end"/>
                 <field name="developer_id"/>
                 <field name="project_id"/>
-                <field name="outcome"/>
+                <field name="outcome_id"/>
                 <field name="next_follow_up_date"/>
                 <field name="state"
                        widget="badge"
@@ -91,12 +91,13 @@
                         </group>
 
                         <group string="Meeting Type">
-                            <field name="meeting_type"/>
+                            <field name="meeting_type_id"/>
+                            <field name="meeting_type_location_mode" invisible="1"/>
                             <field name="location"
-                                   invisible="meeting_type in ['zoom', 'google_meet', 'phone']"/>
+                                   invisible="meeting_type_location_mode != 'location'"/>
                             <field name="meeting_link"
                                    widget="url"
-                                   invisible="meeting_type not in ['zoom', 'google_meet']"/>
+                                   invisible="meeting_type_location_mode != 'online'"/>
                         </group>
                     </group>
 
@@ -130,7 +131,7 @@
                               name="meeting_result">
 
                             <group>
-                                <field name="outcome"/>
+                                <field name="outcome_id"/>
                                 <field name="next_follow_up_date"/>
                             </group>
 
@@ -177,8 +178,8 @@
                 <field name="responsible_user_id"/>
                 <field name="developer_id"/>
                 <field name="project_id"/>
-                <field name="meeting_type"/>
-                <field name="outcome"/>
+                <field name="meeting_type_id"/>
+                <field name="outcome_id"/>
 
                 <separator/>
 
@@ -217,7 +218,7 @@
 
                     <filter name="group_type"
                             string="Meeting Type"
-                            context="{'group_by': 'meeting_type'}"/>
+                            context="{'group_by': 'meeting_type_id'}"/>
 
                     <filter name="group_developer"
                             string="Developer"
@@ -242,7 +243,7 @@
 
     <record id="action_brokerage_crm_meeting"
             model="ir.actions.act_window">
-        <field name="name">Brokerage Meetings</field>
+        <field name="name">Meetings</field>
         <field name="res_model">brokerage.crm.meeting</field>
         <field name="view_mode">list,form</field>
         <field name="search_view_id"
@@ -250,7 +251,7 @@
         <field name="context">{'search_default_my_meetings': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-                No brokerage meetings found.
+                No meetings found.
             </p>
             <p>
                 Schedule meetings from the CRM opportunity form.

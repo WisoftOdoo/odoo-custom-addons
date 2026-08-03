@@ -25,7 +25,30 @@ class TestBrokerageWhatsApp(TransactionCase):
             "brokerage_crm.ultramsg_default_country_code", "971"
         )
         parameters.set_param("brokerage_crm.ultramsg_max_attempts", "3")
+        parameters.set_param(
+            "brokerage_crm.ultramsg_retry_base_minutes", "5"
+        )
+        parameters.set_param(
+            "brokerage_crm.ultramsg_retry_max_minutes", "60"
+        )
+        always_open = cls.env["resource.calendar"].create({
+            "name": "WhatsApp Tests 24/7",
+            "tz": "UTC",
+            "attendance_ids": [
+                (0, 0, {
+                    "name": "Open",
+                    "dayofweek": str(day),
+                    "hour_from": 0,
+                    "hour_to": 24,
+                })
+                for day in range(7)
+            ],
+        })
+        cls.env.company.resource_calendar_id = always_open
 
+        manager_group = cls.env.ref(
+            "brokerage_crm.group_brokerage_sales_manager"
+        )
         cls.agent = cls.env["res.users"].create({
             "name": "WhatsApp Agent",
             "login": "whatsapp.agent@test.invalid",
@@ -34,6 +57,7 @@ class TestBrokerageWhatsApp(TransactionCase):
         cls.manager = cls.env["res.users"].create({
             "name": "WhatsApp Manager",
             "login": "whatsapp.manager@test.invalid",
+            "group_ids": [(6, 0, [manager_group.id])],
         })
         cls.manager.partner_id.phone = "+971 55 987 6543"
         cls.team = cls.env["crm.team"].create({
@@ -96,6 +120,7 @@ class TestBrokerageWhatsApp(TransactionCase):
         notification.invalidate_recordset()
         self.assertEqual(notification.state, "sent")
         self.assertEqual(notification.external_message_id, "42")
+        self.assertEqual(notification.retry_cycle_attempt_count, 1)
         payload = request_post.call_args.kwargs["data"]
         self.assertEqual(payload["to"], "+971501234567")
         self.assertIn("WhatsApp Assignment Lead", payload["body"])
@@ -120,6 +145,64 @@ class TestBrokerageWhatsApp(TransactionCase):
         self.assertEqual(notification.state, "skipped")
         self.assertFalse(notification.recipient_phone)
         self.assertEqual(notification.attempt_count, 0)
+
+    def test_exponential_retry_terminal_alert_and_manual_retry(self):
+        parameters = self.env["ir.config_parameter"].sudo()
+        parameters.set_param(
+            "brokerage_crm.ultramsg_failure_alert_user_id",
+            str(self.manager.id),
+        )
+        lead = self.env["crm.lead"].create({
+            "name": "WhatsApp Retry Lead",
+            "type": "opportunity",
+            "team_id": self.team.id,
+            "user_id": self.agent.id,
+        })
+        notification = self.env[
+            "brokerage.whatsapp.notification"
+        ].queue_assignment(lead, self.agent)
+
+        before_first_failure = fields.Datetime.now()
+        notification._mark_failed("Network timeout 1", 3)
+        first_retry_at = notification.next_attempt_at
+        self.assertEqual(notification.retry_cycle_attempt_count, 1)
+        self.assertGreaterEqual(
+            first_retry_at,
+            before_first_failure + timedelta(minutes=5),
+        )
+
+        notification._mark_failed("Network timeout 2", 3)
+        second_retry_at = notification.next_attempt_at
+        self.assertEqual(notification.retry_cycle_attempt_count, 2)
+        self.assertGreaterEqual(
+            second_retry_at,
+            fields.Datetime.now() + timedelta(minutes=10),
+        )
+
+        notification._mark_failed("Network timeout 3", 3)
+        self.assertEqual(notification.state, "failed")
+        self.assertEqual(notification.attempt_count, 3)
+        self.assertEqual(notification.retry_cycle_attempt_count, 3)
+        self.assertFalse(notification.next_attempt_at)
+        self.assertTrue(notification.failure_alerted_at)
+        self.assertEqual(notification.failure_alert_user_id, self.manager)
+        self.assertEqual(
+            self.env["mail.activity"].search_count([
+                ("res_model", "=", "crm.lead"),
+                ("res_id", "=", lead.id),
+                ("summary", "=", "WhatsApp delivery failed"),
+                ("user_id", "=", self.manager.id),
+            ]),
+            1,
+        )
+
+        notification.with_user(self.manager).action_retry_now()
+        notification.invalidate_recordset()
+        self.assertEqual(notification.state, "pending")
+        self.assertEqual(notification.attempt_count, 3)
+        self.assertEqual(notification.retry_cycle_attempt_count, 0)
+        self.assertEqual(notification.manual_retry_count, 1)
+        self.assertFalse(notification.failure_alerted_at)
 
     def test_sla_escalation_is_queued_for_team_manager(self):
         rule = self.env["brokerage.crm.sla.rule"].create({
@@ -161,7 +244,11 @@ class TestBrokerageWhatsApp(TransactionCase):
             "brokerage.whatsapp.notification"
         ].search([
             ("lead_id", "=", lead.id),
-            ("notification_type", "=", "escalation"),
+            (
+                "notification_type",
+                "=",
+                "team_leader_escalation",
+            ),
         ])
         self.assertEqual(len(notification), 1)
         self.assertEqual(notification.recipient_user_id, self.manager)
@@ -171,7 +258,18 @@ class TestBrokerageWhatsApp(TransactionCase):
             self.env["brokerage.crm.sla.log"].search_count([
                 ("lead_id", "=", lead.id),
                 ("rule_id", "=", rule.id),
-                ("event_type", "=", "escalation"),
+                ("event_type", "=", "team_leader_escalation"),
+            ]),
+            1,
+        )
+        # The SLA activity itself is the single Odoo app notification. A
+        # second custom notification would create duplicate alerts.
+        self.assertEqual(
+            self.env["mail.message"].sudo().search_count([
+                ("model", "=", "crm.lead"),
+                ("res_id", "=", lead.id),
+                ("message_type", "=", "user_notification"),
+                ("partner_ids", "in", self.manager.partner_id.id),
             ]),
             1,
         )

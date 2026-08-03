@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo noupdate="1">
+    <record id="meeting_type_office" model="brokerage.crm.meeting.type">
+        <field name="name">Office Meeting</field>
+        <field name="code">office</field>
+        <field name="sequence">10</field>
+        <field name="location_mode">location</field>
+    </record>
+    <record id="meeting_type_customer_location" model="brokerage.crm.meeting.type">
+        <field name="name">Customer Location</field>
+        <field name="code">customer_location</field>
+        <field name="sequence">20</field>
+        <field name="location_mode">location</field>
+    </record>
+    <record id="meeting_type_zoom" model="brokerage.crm.meeting.type">
+        <field name="name">Zoom</field>
+        <field name="code">zoom</field>
+        <field name="sequence">30</field>
+        <field name="location_mode">online</field>
+    </record>
+    <record id="meeting_type_google_meet" model="brokerage.crm.meeting.type">
+        <field name="name">Google Meet</field>
+        <field name="code">google_meet</field>
+        <field name="sequence">40</field>
+        <field name="location_mode">online</field>
+    </record>
+    <record id="meeting_type_phone" model="brokerage.crm.meeting.type">
+        <field name="name">Phone Meeting</field>
+        <field name="code">phone</field>
+        <field name="sequence">50</field>
+        <field name="location_mode">none</field>
+    </record>
+    <record id="meeting_type_project_visit" model="brokerage.crm.meeting.type">
+        <field name="name">Project Visit</field>
+        <field name="code">project_visit</field>
+        <field name="sequence">60</field>
+        <field name="location_mode">location</field>
+    </record>
+    <record id="meeting_type_developer_office" model="brokerage.crm.meeting.type">
+        <field name="name">Developer Office</field>
+        <field name="code">developer_office</field>
+        <field name="sequence">70</field>
+        <field name="location_mode">location</field>
+    </record>
+    <record id="meeting_type_other" model="brokerage.crm.meeting.type">
+        <field name="name">Other</field>
+        <field name="code">other</field>
+        <field name="sequence">90</field>
+        <field name="location_mode">location</field>
+        <field name="active" eval="False"/>
+    </record>
+</odoo>

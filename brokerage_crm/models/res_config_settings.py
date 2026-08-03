@@ -26,7 +26,7 @@ class ResConfigSettings(models.TransientModel):
         string="Reminder 3 After",
     )
     brokerage_sla_escalation_minutes = fields.Integer(
-        string="Manager Escalation After",
+        string="Team Leader Escalation After",
     )
     brokerage_sla_reassignment_minutes = fields.Integer(
         string="Cross-Team Reassignment After",
@@ -66,6 +66,26 @@ class ResConfigSettings(models.TransientModel):
         string="Maximum Delivery Attempts",
         config_parameter="brokerage_crm.ultramsg_max_attempts",
         default=3,
+    )
+    brokerage_ultramsg_retry_base_minutes = fields.Integer(
+        string="Initial Retry Delay",
+        config_parameter="brokerage_crm.ultramsg_retry_base_minutes",
+        default=5,
+    )
+    brokerage_ultramsg_retry_max_minutes = fields.Integer(
+        string="Maximum Retry Delay",
+        config_parameter="brokerage_crm.ultramsg_retry_max_minutes",
+        default=60,
+    )
+    brokerage_ultramsg_failure_alert_user_id = fields.Many2one(
+        comodel_name="res.users",
+        string="Delivery Failure Alert User",
+        config_parameter="brokerage_crm.ultramsg_failure_alert_user_id",
+        domain=[("share", "=", False), ("active", "=", True)],
+        help=(
+            "Receives an Odoo activity after WhatsApp delivery permanently "
+            "fails. If empty, the lead's Sales Team manager is notified."
+        ),
     )
 
     @api.model
@@ -117,7 +137,7 @@ class ResConfigSettings(models.TransientModel):
                 self.brokerage_sla_reminder_3_minutes,
             ),
             (
-                _("Manager Escalation"),
+                _("Team Leader Escalation"),
                 self.brokerage_sla_escalation_minutes,
             ),
             (
@@ -176,6 +196,18 @@ class ResConfigSettings(models.TransientModel):
             if settings.brokerage_ultramsg_max_attempts <= 0:
                 raise ValidationError(_(
                     "Maximum UltraMsg delivery attempts must be positive."
+                ))
+            if settings.brokerage_ultramsg_retry_base_minutes <= 0:
+                raise ValidationError(_(
+                    "The initial UltraMsg retry delay must be positive."
+                ))
+            if (
+                settings.brokerage_ultramsg_retry_max_minutes
+                < settings.brokerage_ultramsg_retry_base_minutes
+            ):
+                raise ValidationError(_(
+                    "The maximum UltraMsg retry delay must be greater than or "
+                    "equal to the initial retry delay."
                 ))
         result = super().set_values()
         for settings in self:

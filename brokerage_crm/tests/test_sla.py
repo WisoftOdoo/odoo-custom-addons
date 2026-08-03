@@ -5,6 +5,24 @@ from odoo.tests.common import TransactionCase
 
 
 class TestSla(TransactionCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        always_open = cls.env["resource.calendar"].create({
+            "name": "SLA Tests 24/7",
+            "tz": "UTC",
+            "attendance_ids": [
+                (0, 0, {
+                    "name": "Open",
+                    "dayofweek": str(day),
+                    "hour_from": 0,
+                    "hour_to": 24,
+                })
+                for day in range(7)
+            ],
+        })
+        cls.env.company.resource_calendar_id = always_open
+
     def test_cron_creates_sla_log(self):
         activity_type = self.env.ref("brokerage_crm.mail_activity_type_call_customer")
         rule = self.env["brokerage.crm.sla.rule"].create({
@@ -46,7 +64,7 @@ class TestSla(TransactionCase):
         escalation_activity = self.env["mail.activity"].search([
             ("res_model", "=", "crm.lead"),
             ("res_id", "=", lead.id),
-            ("summary", "ilike", "SLA Escalation"),
+            ("summary", "ilike", "Team Leader Escalation"),
         ])
         self.assertEqual(escalation_activity.user_id, self.env.user)
 
@@ -175,6 +193,64 @@ class TestSla(TransactionCase):
             lead.assignment_history_ids.sorted("id")[-1].assignment_type,
             "reassignment",
         )
+
+    def test_cross_team_destination_follows_hierarchy_not_counts(self):
+        self.env["brokerage.crm.round.robin"].search([]).write({
+            "active": False,
+        })
+        agents = self.env["res.users"].create([
+            {"name": "Hierarchy A", "login": "cross.hierarchy.a@test.invalid"},
+            {"name": "Hierarchy B", "login": "cross.hierarchy.b@test.invalid"},
+            {"name": "Hierarchy C", "login": "cross.hierarchy.c@test.invalid"},
+        ])
+        teams = self.env["crm.team"].create([
+            {"name": "Cross Hierarchy Team A"},
+            {"name": "Cross Hierarchy Team B"},
+            {"name": "Cross Hierarchy Team C"},
+        ])
+        rules = self.env["brokerage.crm.round.robin"].create([
+            {
+                "name": "Cross Hierarchy A",
+                "sequence": 10,
+                "team_id": teams[0].id,
+                "member_ids": [(6, 0, [agents[0].id])],
+                "cross_team_assignment_count": 5,
+            },
+            {
+                "name": "Cross Hierarchy B",
+                "sequence": 20,
+                "team_id": teams[1].id,
+                "member_ids": [(6, 0, [agents[1].id])],
+                "cross_team_assignment_count": 100,
+            },
+            {
+                "name": "Cross Hierarchy C",
+                "sequence": 30,
+                "team_id": teams[2].id,
+                "member_ids": [(6, 0, [agents[2].id])],
+                "cross_team_assignment_count": 0,
+            },
+        ])
+        assigned_stage = self.env["crm.stage"].create({
+            "name": "Assigned Cross Hierarchy",
+            "brokerage_code": "assigned",
+            "team_ids": [(6, 0, teams.ids)],
+        })
+        lead = self.env["crm.lead"].create({
+            "name": "Hierarchy beats count",
+            "team_id": teams[0].id,
+            "user_id": agents[0].id,
+            "stage_id": assigned_stage.id,
+        })
+
+        self.env["brokerage.crm.round.robin"].assign_lead_cross_team(lead)
+
+        lead.invalidate_recordset()
+        rules.invalidate_recordset()
+        self.assertEqual(lead.team_id, teams[1])
+        self.assertEqual(lead.user_id, agents[1])
+        self.assertEqual(rules[1].cross_team_assignment_count, 101)
+        self.assertEqual(rules[2].cross_team_assignment_count, 0)
 
     def test_sla_ignores_non_round_robin_assignment(self):
         self.env["brokerage.crm.sla.rule"].search([]).write({

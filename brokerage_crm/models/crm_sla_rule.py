@@ -73,7 +73,7 @@ class CrmSlaRule(models.Model):
     )
 
     escalation_minutes = fields.Integer(
-        string="Escalate After",
+        string="Team Leader Escalation After",
         default=30,
     )
 

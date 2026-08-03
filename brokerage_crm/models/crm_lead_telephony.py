@@ -37,7 +37,7 @@ class CrmLeadTelephony(models.Model):
             )
         ):
             raise AccessError(_(
-                "Only the assigned salesperson or a Sales Manager can "
+                "Only the assigned salesperson or a Configuration Manager can "
                 "start a PBX call for this lead."
             ))
         provider = self._get_brokerage_telephony_provider(user)

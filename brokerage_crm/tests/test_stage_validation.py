@@ -6,6 +6,45 @@ from odoo.tests.common import TransactionCase
 
 
 class TestLeadValidation(TransactionCase):
+    def test_next_action_follows_brokerage_stage_hierarchy(self):
+        stages = self.env["crm.stage"].create([
+            {
+                "name": "Hint Assigned",
+                "brokerage_code": "assigned",
+            },
+            {
+                "name": "Hint Contact Attempted",
+                "brokerage_code": "contact_attempted",
+            },
+            {
+                "name": "Hint Contacted",
+                "brokerage_code": "contacted",
+            },
+            {
+                "name": "Hint Meeting Scheduled",
+                "brokerage_code": "meeting_scheduled",
+            },
+            {
+                "name": "Hint Forecast",
+                "brokerage_code": "forecast",
+            },
+        ])
+        lead = self.env["crm.lead"].create({
+            "name": "Next Step Guidance",
+            "type": "opportunity",
+            "stage_id": stages[0].id,
+        })
+
+        self.assertEqual(lead.brokerage_next_action, "contact_attempt")
+        lead.with_context(brokerage_workflow_action=True).stage_id = stages[1]
+        self.assertEqual(lead.brokerage_next_action, "contact_attempt")
+        lead.with_context(brokerage_workflow_action=True).stage_id = stages[2]
+        self.assertEqual(lead.brokerage_next_action, "schedule_meeting")
+        lead.with_context(brokerage_workflow_action=True).stage_id = stages[3]
+        self.assertEqual(lead.brokerage_next_action, "complete_meeting")
+        lead.with_context(brokerage_workflow_action=True).stage_id = stages[4]
+        self.assertFalse(lead.brokerage_next_action)
+
     def test_agent_cannot_drag_lead_backward(self):
         agent = self.env["res.users"].create({
             "name": "Backward Move Agent",

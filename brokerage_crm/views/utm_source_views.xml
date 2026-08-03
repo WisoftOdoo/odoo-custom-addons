@@ -13,7 +13,6 @@
 
                 <field name="name"/>
                 <field name="brokerage_category"/>
-                <field name="round_robin_applicable"/>
                 <field name="sla_applicable"/>
                 <field name="penalty_applicable"/>
                 <field name="default_team_id"/>
@@ -54,10 +53,8 @@
                             <field name="default_team_id"/>
                         </group>
 
-                        <group string="Assignment Rules">
-                            <field name="round_robin_applicable"/>
-                            <field name="require_direct_assignment"
-                                   invisible="round_robin_applicable"/>
+                        <group string="Source Handling">
+                            <field name="require_direct_assignment"/>
                             <field name="is_bulk_source"/>
                         </group>
                     </group>
@@ -69,13 +66,6 @@
                                    invisible="not sla_applicable"/>
                         </group>
                     </group>
-
-                    <div class="alert alert-info"
-                         role="alert"
-                         invisible="brokerage_category != 'marketing'">
-                        Marketing sources can be automatically assigned
-                        through strict Round Robin.
-                    </div>
 
                     <div class="alert alert-warning"
                          role="alert"
@@ -105,10 +95,6 @@
                 <field name="default_team_id"/>
 
                 <separator/>
-
-                <filter name="round_robin_sources"
-                        string="Round Robin"
-                        domain="[('round_robin_applicable', '=', True)]"/>
 
                 <filter name="sla_sources"
                         string="SLA Applicable"

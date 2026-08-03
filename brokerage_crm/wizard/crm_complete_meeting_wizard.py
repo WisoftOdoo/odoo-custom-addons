@@ -1,4 +1,4 @@
-from odoo import fields, models, _
+from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
 
 
@@ -23,6 +23,7 @@ class CrmCompleteMeetingWizard(models.TransientModel):
     actual_end = fields.Datetime(required=True)
 
     outcome = fields.Selection(
+        string="Legacy Meeting Outcome",
         selection=[
             ("interested", "Interested"),
             ("follow_up", "Follow-up Required"),
@@ -34,7 +35,13 @@ class CrmCompleteMeetingWizard(models.TransientModel):
             ("decision_pending", "Decision Pending"),
             ("other", "Other"),
         ],
+    )
+
+    outcome_id = fields.Many2one(
+        comodel_name="brokerage.crm.meeting.outcome",
+        string="Meeting Outcome",
         required=True,
+        ondelete="restrict",
     )
 
     developer_id = fields.Many2one(
@@ -58,6 +65,19 @@ class CrmCompleteMeetingWizard(models.TransientModel):
         required=True,
     )
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get("outcome") and not vals.get("outcome_id"):
+                outcome = self.env[
+                    "brokerage.crm.meeting.outcome"
+                ].with_context(active_test=False).search([
+                    ("code", "=", vals["outcome"]),
+                ], limit=1)
+                if outcome:
+                    vals["outcome_id"] = outcome.id
+        return super().create(vals_list)
+
     def action_confirm(self):
         self.ensure_one()
 
@@ -80,7 +100,7 @@ class CrmCompleteMeetingWizard(models.TransientModel):
             "state": "completed",
             "actual_start": self.actual_start,
             "actual_end": self.actual_end,
-            "outcome": self.outcome,
+            "outcome_id": self.outcome_id.id,
             "developer_id": self.developer_id.id,
             "project_id": self.project_id.id,
             "customer_requirements": self.customer_requirements,
@@ -131,9 +151,7 @@ class CrmCompleteMeetingWizard(models.TransientModel):
                 "Project: %(project)s<br/>"
                 "Next action: %(action)s"
             ) % {
-                "outcome": dict(
-                    self._fields["outcome"].selection
-                ).get(self.outcome),
+                "outcome": self.outcome_id.display_name,
                 "developer": self.developer_id.display_name,
                 "project": self.project_id.display_name,
                 "action": self.next_action,

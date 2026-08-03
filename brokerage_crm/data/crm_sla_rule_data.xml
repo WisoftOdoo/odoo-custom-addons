@@ -8,7 +8,7 @@
         <field name="reminder_2_minutes">30</field>
         <field name="reminder_3_minutes">45</field>
         <field name="escalation_minutes">60</field>
-        <field name="reassignment_minutes">90</field>
+        <field name="reassignment_minutes">75</field>
         <field name="activity_type_id" ref="brokerage_crm.mail_activity_type_call_customer"/>
         <field name="penalty_applicable">True</field>
     </record>

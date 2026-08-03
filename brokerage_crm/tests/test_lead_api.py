@@ -19,6 +19,10 @@ class TestBrokerageLeadApi(HttpCase):
             "team_id": team.id,
             "member_ids": [(6, 0, [salesperson.id])],
         })
+        cls.campaign_source = cls.env["utm.source"].create({
+            "name": "API Campaign Source",
+            "brokerage_category": "marketing",
+        })
         cls.assigned_stage = cls.env["crm.stage"].search([
             ("brokerage_code", "=", "assigned"),
         ], limit=1)
@@ -26,6 +30,16 @@ class TestBrokerageLeadApi(HttpCase):
             cls.assigned_stage = cls.env["crm.stage"].create({
                 "name": "Assigned API",
                 "brokerage_code": "assigned",
+            })
+        cls.assigned_stage.write({"team_ids": [(4, team.id)]})
+        cls.new_stage = cls.env["crm.stage"].search([
+            ("brokerage_code", "=", "new"),
+        ], order="sequence, id", limit=1)
+        if not cls.new_stage:
+            cls.new_stage = cls.env["crm.stage"].create({
+                "name": "New Lead API",
+                "brokerage_code": "new",
+                "sequence": 1,
             })
 
     def _post(self, payload):
@@ -44,6 +58,7 @@ class TestBrokerageLeadApi(HttpCase):
             "phone": "+971500000001",
             "email": "api.customer@example.com",
             "source": "Meta",
+            "assignment_type": "round_robin",
             "external_lead_id": "meta-test-001",
         }
         response = self._post(payload)
@@ -57,6 +72,7 @@ class TestBrokerageLeadApi(HttpCase):
         self.assertTrue(result["lead"]["assigned_datetime"])
         lead = self.env["crm.lead"].browse(result["lead"]["id"])
         self.assertEqual(lead.type, "opportunity")
+        self.assertEqual(lead.assignment_type, "round_robin")
         self.assertEqual(lead.stage_id, self.assigned_stage)
         self.assertFalse(self.env["mail.activity"].search([
             ("res_model", "=", "crm.lead"),
@@ -83,4 +99,54 @@ class TestBrokerageLeadApi(HttpCase):
     def test_required_fields(self):
         response = self._post({"source": "Meta"})
         self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()["success"])
+
+    def test_round_robin_is_requested_by_assignment_type_not_source(self):
+        response = self._post({
+            "customer_name": "Campaign Customer",
+            "phone": "+971500000002",
+            "source": self.campaign_source.name,
+            "assignment_type": "round_robin",
+            "external_lead_id": "campaign-round-robin-001",
+        })
+        self.assertEqual(response.status_code, 201, response.text)
+        result = response.json()
+        self.assertEqual(result["lead"]["assignment_type"], "round_robin")
+        self.assertTrue(result["lead"]["salesperson_id"])
+        lead = self.env["crm.lead"].browse(result["lead"]["id"])
+        self.assertEqual(lead.source_id, self.campaign_source)
+        self.assertEqual(lead.assignment_type, "round_robin")
+        self.assertEqual(lead.stage_id, self.assigned_stage)
+
+    def test_missing_assignment_type_creates_manual_lead(self):
+        response = self._post({
+            "customer_name": "Manual API Customer",
+            "phone": "+971500000003",
+            "source": self.campaign_source.name,
+            "external_lead_id": "campaign-manual-001",
+        })
+        self.assertEqual(response.status_code, 201, response.text)
+        result = response.json()
+        self.assertEqual(result["lead"]["assignment_type"], "manual")
+        self.assertIsNone(result["lead"]["salesperson_id"])
+        self.assertIsNone(result["lead"]["team_id"])
+        self.assertEqual(result["lead"]["stage_id"], self.new_stage.id)
+        lead = self.env["crm.lead"].browse(result["lead"]["id"])
+        self.assertEqual(lead.assignment_type, "manual")
+        self.assertFalse(lead.user_id)
+        self.assertFalse(lead.team_id)
+        self.assertEqual(lead.stage_id, self.new_stage)
+        self.assertFalse(lead.sla_cycle_active)
+        self.assertFalse(lead.assignment_history_ids.filtered(
+            lambda history: history.assignment_type == "round_robin"
+        ))
+
+    def test_invalid_assignment_type_is_rejected(self):
+        response = self._post({
+            "customer_name": "Invalid Type Customer",
+            "phone": "+971500000004",
+            "source": self.campaign_source.name,
+            "assignment_type": "automatic",
+        })
+        self.assertEqual(response.status_code, 400, response.text)
         self.assertFalse(response.json()["success"])

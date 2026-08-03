@@ -17,6 +17,19 @@ class BrokerageCrmMeeting(models.Model):
         index=True,
     )
 
+    recorded_datetime = fields.Datetime(
+        string="Recorded Date/Time",
+        required=True,
+        default=fields.Datetime.now,
+        readonly=True,
+        copy=False,
+        index=True,
+        help=(
+            "Wall-clock time used to validate that the meeting belongs to "
+            "the current assignment cycle."
+        ),
+    )
+
     name = fields.Char(
         required=True,
         tracking=True,
@@ -37,6 +50,7 @@ class BrokerageCrmMeeting(models.Model):
     )
 
     meeting_type = fields.Selection(
+        string="Legacy Meeting Type",
         selection=[
             ("office", "Office Meeting"),
             ("customer_location", "Customer Location"),
@@ -47,8 +61,27 @@ class BrokerageCrmMeeting(models.Model):
             ("developer_office", "Developer Office"),
             ("other", "Other"),
         ],
-        required=True,
+        default="office",
         tracking=True,
+        help="Legacy compatibility value. Use Meeting Type for new records.",
+    )
+
+    meeting_type_id = fields.Many2one(
+        comodel_name="brokerage.crm.meeting.type",
+        string="Meeting Type",
+        default=lambda self: self.env.ref(
+            "brokerage_crm.meeting_type_office",
+            raise_if_not_found=False,
+        ),
+        ondelete="restrict",
+        tracking=True,
+        index=True,
+    )
+
+    meeting_type_location_mode = fields.Selection(
+        related="meeting_type_id.location_mode",
+        string="Meeting Location Requirement",
+        readonly=True,
     )
 
     scheduled_start = fields.Datetime(
@@ -89,6 +122,7 @@ class BrokerageCrmMeeting(models.Model):
     )
 
     outcome = fields.Selection(
+        string="Legacy Meeting Outcome",
         selection=[
             ("interested", "Interested"),
             ("follow_up", "Follow-up Required"),
@@ -100,6 +134,15 @@ class BrokerageCrmMeeting(models.Model):
             ("decision_pending", "Decision Pending"),
             ("other", "Other"),
         ],
+        tracking=True,
+        index=True,
+        help="Legacy compatibility value. Use Meeting Outcome for new records.",
+    )
+
+    outcome_id = fields.Many2one(
+        comodel_name="brokerage.crm.meeting.outcome",
+        string="Meeting Outcome",
+        ondelete="restrict",
         tracking=True,
         index=True,
     )
@@ -125,6 +168,94 @@ class BrokerageCrmMeeting(models.Model):
         readonly=True,
     )
 
+    @api.model
+    def _meeting_type_from_legacy_code(self, code):
+        return self.env["brokerage.crm.meeting.type"].search([
+            ("code", "=", code or "office"),
+        ], limit=1)
+
+    @api.model
+    def _meeting_outcome_from_legacy_code(self, code):
+        return self.env["brokerage.crm.meeting.outcome"].with_context(
+            active_test=False,
+        ).search([
+            ("code", "=", code),
+        ], limit=1)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        legacy_codes = dict(self._fields["meeting_type"].selection)
+        legacy_outcomes = dict(self._fields["outcome"].selection)
+        for vals in vals_list:
+            if vals.get("meeting_type_id"):
+                meeting_type = self.env[
+                    "brokerage.crm.meeting.type"
+                ].browse(vals["meeting_type_id"])
+                vals.setdefault(
+                    "meeting_type",
+                    meeting_type.code
+                    if meeting_type.code in legacy_codes
+                    else "other",
+                )
+            elif vals.get("meeting_type"):
+                meeting_type = self._meeting_type_from_legacy_code(
+                    vals["meeting_type"]
+                )
+                if meeting_type:
+                    vals["meeting_type_id"] = meeting_type.id
+            if vals.get("outcome_id"):
+                outcome = self.env[
+                    "brokerage.crm.meeting.outcome"
+                ].browse(vals["outcome_id"])
+                vals.setdefault(
+                    "outcome",
+                    outcome.code
+                    if outcome.code in legacy_outcomes
+                    else "other",
+                )
+            elif vals.get("outcome"):
+                outcome = self._meeting_outcome_from_legacy_code(
+                    vals["outcome"]
+                )
+                if outcome:
+                    vals["outcome_id"] = outcome.id
+        return super().create(vals_list)
+
+    def write(self, vals):
+        legacy_codes = dict(self._fields["meeting_type"].selection)
+        legacy_outcomes = dict(self._fields["outcome"].selection)
+        if vals.get("meeting_type_id"):
+            meeting_type = self.env[
+                "brokerage.crm.meeting.type"
+            ].browse(vals["meeting_type_id"])
+            vals.setdefault(
+                "meeting_type",
+                meeting_type.code
+                if meeting_type.code in legacy_codes
+                else "other",
+            )
+        elif vals.get("meeting_type"):
+            meeting_type = self._meeting_type_from_legacy_code(
+                vals["meeting_type"]
+            )
+            if meeting_type:
+                vals["meeting_type_id"] = meeting_type.id
+        if vals.get("outcome_id"):
+            outcome = self.env[
+                "brokerage.crm.meeting.outcome"
+            ].browse(vals["outcome_id"])
+            vals.setdefault(
+                "outcome",
+                outcome.code
+                if outcome.code in legacy_outcomes
+                else "other",
+            )
+        elif vals.get("outcome"):
+            outcome = self._meeting_outcome_from_legacy_code(vals["outcome"])
+            if outcome:
+                vals["outcome_id"] = outcome.id
+        return super().write(vals)
+
     @api.onchange("developer_id")
     def _onchange_developer_id(self):
         if (
@@ -141,7 +272,7 @@ class BrokerageCrmMeeting(models.Model):
         "scheduled_end",
         "actual_start",
         "actual_end",
-        "meeting_type",
+        "meeting_type_id",
         "location",
         "meeting_link",
         "developer_id",
@@ -168,7 +299,7 @@ class BrokerageCrmMeeting(models.Model):
                 )
 
             if (
-                meeting.meeting_type in ("zoom", "google_meet")
+                meeting.meeting_type_location_mode == "online"
                 and not meeting.meeting_link
             ):
                 raise ValidationError(
@@ -176,8 +307,7 @@ class BrokerageCrmMeeting(models.Model):
                 )
 
             if (
-                meeting.meeting_type
-                not in ("zoom", "google_meet", "phone")
+                meeting.meeting_type_location_mode == "location"
                 and not meeting.location
             ):
                 raise ValidationError(
@@ -200,7 +330,7 @@ class BrokerageCrmMeeting(models.Model):
         "state",
         "actual_start",
         "actual_end",
-        "outcome",
+        "outcome_id",
         "developer_id",
         "project_id",
         "agent_remarks",
@@ -218,7 +348,7 @@ class BrokerageCrmMeeting(models.Model):
                 missing.append(_("Actual Start"))
             if not meeting.actual_end:
                 missing.append(_("Actual End"))
-            if not meeting.outcome:
+            if not meeting.outcome_id:
                 missing.append(_("Meeting Outcome"))
             if not meeting.developer_id:
                 missing.append(_("Developer"))
