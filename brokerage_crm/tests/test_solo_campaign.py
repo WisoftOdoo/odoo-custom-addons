@@ -454,9 +454,11 @@ class TestBrokerageSoloCampaign(TransactionCase):
             skip_round_robin=True,
             brokerage_workflow_action=True,
         ).write({
-            "assigned_datetime": (
-                fields.Datetime.now() - timedelta(minutes=76)
-            ),
+            # Keep this simulated assignment cycle distinct from the first
+            # one. Odoo datetimes have second-level precision, so calling
+            # now() again in the same second would reuse the existing SLA
+            # log key and incorrectly skip the second reassignment.
+            "assigned_datetime": original_assignment - timedelta(seconds=1),
             "sla_cycle_active": True,
         })
         self.env["crm.lead"]._cron_check_brokerage_sla()
