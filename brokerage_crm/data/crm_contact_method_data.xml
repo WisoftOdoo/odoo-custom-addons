@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo noupdate="1">
+    <record id="contact_method_phone_call" model="brokerage.crm.contact.method">
+        <field name="name">Phone Call</field>
+        <field name="code">call</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="contact_method_whatsapp" model="brokerage.crm.contact.method">
+        <field name="name">WhatsApp</field>
+        <field name="code">whatsapp</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="contact_method_email" model="brokerage.crm.contact.method">
+        <field name="name">Email</field>
+        <field name="code">email</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="contact_method_sms" model="brokerage.crm.contact.method">
+        <field name="name">SMS</field>
+        <field name="code">sms</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="contact_method_other" model="brokerage.crm.contact.method">
+        <field name="name">Other</field>
+        <field name="code">other</field>
+        <field name="sequence">90</field>
+        <field name="active" eval="False"/>
+    </record>
+</odoo>

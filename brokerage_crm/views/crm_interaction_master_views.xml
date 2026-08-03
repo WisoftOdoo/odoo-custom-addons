@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_brokerage_crm_contact_method_list" model="ir.ui.view">
+        <field name="name">brokerage.crm.contact.method.list</field>
+        <field name="model">brokerage.crm.contact.method</field>
+        <field name="arch" type="xml">
+            <list editable="bottom" decoration-muted="not active">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_brokerage_crm_contact_method_form" model="ir.ui.view">
+        <field name="name">brokerage.crm.contact.method.form</field>
+        <field name="model">brokerage.crm.contact.method</field>
+        <field name="arch" type="xml">
+            <form string="Contact Method">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="code" placeholder="Generated automatically when empty"/>
+                        <field name="sequence"/>
+                        <field name="active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_brokerage_crm_contact_method" model="ir.actions.act_window">
+        <field name="name">Contact Methods</field>
+        <field name="res_model">brokerage.crm.contact.method</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_brokerage_crm_meeting_type_list" model="ir.ui.view">
+        <field name="name">brokerage.crm.meeting.type.list</field>
+        <field name="model">brokerage.crm.meeting.type</field>
+        <field name="arch" type="xml">
+            <list editable="bottom" decoration-muted="not active">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="location_mode"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_brokerage_crm_meeting_type_form" model="ir.ui.view">
+        <field name="name">brokerage.crm.meeting.type.form</field>
+        <field name="model">brokerage.crm.meeting.type</field>
+        <field name="arch" type="xml">
+            <form string="Meeting Type">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="code" placeholder="Generated automatically when empty"/>
+                        <field name="location_mode"/>
+                        <field name="sequence"/>
+                        <field name="active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_brokerage_crm_meeting_type" model="ir.actions.act_window">
+        <field name="name">Meeting Types</field>
+        <field name="res_model">brokerage.crm.meeting.type</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_brokerage_crm_meeting_outcome_list" model="ir.ui.view">
+        <field name="name">brokerage.crm.meeting.outcome.list</field>
+        <field name="model">brokerage.crm.meeting.outcome</field>
+        <field name="arch" type="xml">
+            <list editable="bottom" decoration-muted="not active">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_brokerage_crm_meeting_outcome_form" model="ir.ui.view">
+        <field name="name">brokerage.crm.meeting.outcome.form</field>
+        <field name="model">brokerage.crm.meeting.outcome</field>
+        <field name="arch" type="xml">
+            <form string="Meeting Outcome">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="code" placeholder="Generated automatically when empty"/>
+                        <field name="sequence"/>
+                        <field name="active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_brokerage_crm_meeting_outcome" model="ir.actions.act_window">
+        <field name="name">Meeting Outcomes</field>
+        <field name="res_model">brokerage.crm.meeting.outcome</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

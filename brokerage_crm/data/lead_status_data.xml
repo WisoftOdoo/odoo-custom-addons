@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo noupdate="1">
+
+    <record id="lead_status_new"
+            model="brokerage.crm.lead.status">
+        <field name="name">New</field>
+        <field name="code">new</field>
+        <field name="sequence">10</field>
+    </record>
+
+    <record id="lead_status_assigned"
+            model="brokerage.crm.lead.status">
+        <field name="name">Assigned</field>
+        <field name="code">assigned</field>
+        <field name="sequence">20</field>
+    </record>
+
+    <record id="lead_status_calling"
+            model="brokerage.crm.lead.status">
+        <field name="name">Calling</field>
+        <field name="code">calling</field>
+        <field name="sequence">30</field>
+        <field name="is_contact_attempt">True</field>
+        <field name="requires_next_activity">True</field>
+    </record>
+
+    <record id="lead_status_no_answer"
+            model="brokerage.crm.lead.status">
+        <field name="name">No Answer</field>
+        <field name="code">no_answer</field>
+        <field name="sequence">40</field>
+        <field name="is_contact_attempt">True</field>
+        <field name="requires_remarks">True</field>
+        <field name="requires_next_activity">True</field>
+    </record>
+
+    <record id="lead_status_busy"
+            model="brokerage.crm.lead.status">
+        <field name="name">Busy</field>
+        <field name="code">busy</field>
+        <field name="sequence">50</field>
+        <field name="is_contact_attempt">True</field>
+        <field name="requires_remarks">True</field>
+        <field name="requires_next_activity">True</field>
+    </record>
+
+    <record id="lead_status_switched_off"
+            model="brokerage.crm.lead.status">
+        <field name="name">Switched Off</field>
+        <field name="code">switched_off</field>
+        <field name="sequence">60</field>
+        <field name="is_contact_attempt">True</field>
+        <field name="requires_remarks">True</field>
+        <field name="requires_next_activity">True</field>
+    </record>
+
+    <record id="lead_status_whatsapp_sent"
+            model="brokerage.crm.lead.status">
+        <field name="name">WhatsApp Sent</field>
+        <field name="code">whatsapp_sent</field>
+        <field name="sequence">70</field>
+        <field name="is_contact_attempt">True</field>
+        <field name="requires_remarks">True</field>
+        <field name="requires_next_activity">True</field>
+    </record>
+
+    <record id="lead_status_callback_requested"
+            model="brokerage.crm.lead.status">
+        <field name="name">Callback Requested</field>
+        <field name="code">callback_requested</field>
+        <field name="sequence">80</field>
+        <field name="is_contact_attempt">True</field>
+        <field name="requires_remarks">True</field>
+        <field name="requires_next_activity">True</field>
+    </record>
+
+    <record id="lead_status_contacted"
+            model="brokerage.crm.lead.status">
+        <field name="name">Contacted</field>
+        <field name="code">contacted</field>
+        <field name="sequence">90</field>
+        <field name="is_contact_attempt">True</field>
+        <field name="is_successful_contact">True</field>
+        <field name="requires_next_activity">True</field>
+    </record>
+
+    <record id="lead_status_qualified"
+            model="brokerage.crm.lead.status">
+        <field name="name">Qualified</field>
+        <field name="code">qualified</field>
+        <field name="sequence">100</field>
+        <field name="is_contact_attempt">True</field>
+        <field name="is_successful_contact">True</field>
+        <field name="requires_next_activity">True</field>
+    </record>
+
+    <record id="lead_status_follow_up"
+            model="brokerage.crm.lead.status">
+        <field name="name">Follow-up Required</field>
+        <field name="code">follow_up</field>
+        <field name="sequence">110</field>
+        <field name="requires_remarks">True</field>
+        <field name="requires_next_activity">True</field>
+    </record>
+
+    <record id="lead_status_meeting_scheduled"
+            model="brokerage.crm.lead.status">
+        <field name="name">Meeting Scheduled</field>
+        <field name="code">meeting_scheduled</field>
+        <field name="sequence">120</field>
+    </record>
+
+    <record id="lead_status_meeting_completed"
+            model="brokerage.crm.lead.status">
+        <field name="name">Meeting Completed</field>
+        <field name="code">meeting_completed</field>
+        <field name="sequence">130</field>
+        <field name="requires_next_activity">True</field>
+    </record>
+
+    <record id="lead_status_not_interested"
+            model="brokerage.crm.lead.status">
+        <field name="name">Not Interested</field>
+        <field name="code">not_interested</field>
+        <field name="sequence">140</field>
+        <field name="requires_remarks">True</field>
+        <field name="is_contact_attempt">True</field>
+        <field name="is_invalid">True</field>
+    </record>
+
+    <record id="lead_status_invalid_number"
+            model="brokerage.crm.lead.status">
+        <field name="name">Invalid Number</field>
+        <field name="code">invalid_number</field>
+        <field name="sequence">150</field>
+        <field name="is_contact_attempt">True</field>
+        <field name="requires_remarks">True</field>
+        <field name="is_invalid">True</field>
+    </record>
+
+</odoo>

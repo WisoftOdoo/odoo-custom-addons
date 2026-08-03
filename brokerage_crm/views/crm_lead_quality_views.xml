@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- =========================================================
+         LEAD QUALITY LIST
+         ========================================================= -->
+
+    <record id="view_brokerage_crm_lead_quality_list"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.lead.quality.list</field>
+        <field name="model">brokerage.crm.lead.quality</field>
+        <field name="arch" type="xml">
+            <list string="Lead Qualities"
+                  editable="bottom"
+                  default_order="sequence asc">
+
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="color" widget="color_picker"/>
+                <field name="default_probability"/>
+                <field name="active"/>
+
+            </list>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         LEAD QUALITY FORM
+         ========================================================= -->
+
+    <record id="view_brokerage_crm_lead_quality_form"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.lead.quality.form</field>
+        <field name="model">brokerage.crm.lead.quality</field>
+        <field name="arch" type="xml">
+            <form string="Lead Quality">
+
+                <sheet>
+
+                    <widget name="web_ribbon"
+                            title="Archived"
+                            bg_color="text-bg-danger"
+                            invisible="active"/>
+
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name"
+                                   placeholder="Quality name..."/>
+                        </h1>
+                    </div>
+
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="sequence"/>
+                        </group>
+
+                        <group>
+                            <field name="color" widget="color_picker"/>
+                            <field name="default_probability"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+
+                </sheet>
+
+            </form>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         LEAD QUALITY SEARCH
+         ========================================================= -->
+
+    <record id="view_brokerage_crm_lead_quality_search"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.lead.quality.search</field>
+        <field name="model">brokerage.crm.lead.quality</field>
+        <field name="arch" type="xml">
+            <search string="Search Lead Qualities">
+
+                <field name="name"/>
+                <field name="code"/>
+
+                <separator/>
+
+                <filter name="active_qualities"
+                        string="Active"
+                        domain="[('active', '=', True)]"/>
+
+                <filter name="archived_qualities"
+                        string="Archived"
+                        domain="[('active', '=', False)]"/>
+
+                <group>
+                    <filter name="group_probability"
+                            string="Probability"
+                            context="{'group_by': 'default_probability'}"/>
+                </group>
+
+            </search>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         LEAD QUALITY ACTION
+         ========================================================= -->
+
+    <record id="action_brokerage_crm_lead_quality"
+            model="ir.actions.act_window">
+        <field name="name">Lead Qualities</field>
+        <field name="res_model">brokerage.crm.lead.quality</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id"
+               ref="view_brokerage_crm_lead_quality_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Configure lead quality levels.
+            </p>
+        </field>
+    </record>
+
+</odoo>
