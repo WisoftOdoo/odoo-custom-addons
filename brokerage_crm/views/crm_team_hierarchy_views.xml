@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <record id="view_crm_team_form_brokerage_hierarchy"
+            model="ir.ui.view">
+        <field name="name">crm.team.form.brokerage.hierarchy</field>
+        <field name="model">crm.team</field>
+        <field name="inherit_id" ref="sales_team.crm_team_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='user_id']" position="attributes">
+                <attribute name="string">Team Leader</attribute>
+                <attribute name="help">Team Leader responsible for the agents in this team and the final SLA escalation.</attribute>
+            </xpath>
+            <xpath expr="//field[@name='user_id']" position="after">
+                <field name="brokerage_solo_campaign"/>
+                <field name="brokerage_working_calendar_id"
+                       options="{'no_create': True}"
+                       placeholder="Use company working hours"/>
+            </xpath>
+            <xpath expr="//group[@name='right']" position="inside">
+                <group string="Solo Campaign State"
+                       invisible="not brokerage_solo_campaign">
+                    <field name="brokerage_solo_next_index"/>
+                    <field name="brokerage_solo_assignment_count"/>
+                    <field name="brokerage_solo_last_user_id"/>
+                    <field name="brokerage_solo_last_assignment_datetime"/>
+                    <field name="brokerage_solo_cross_assignment_count"/>
+                </group>
+            </xpath>
+            <xpath expr="//notebook" position="before">
+                <div class="alert alert-info"
+                     role="alert"
+                     invisible="not brokerage_solo_campaign">
+                    This team uses an isolated sequence rotation. Eligible
+                    users and their order come from its Round Robin Agent
+                    Rotation Order; when no available agent exists, the Team
+                    Leader receives the lead. SLA reassignment exhausts the
+                    remaining eligible users in this team before its final
+                    exit follows the Round Robin Configuration Sequence.
+                    Assignment totals are reporting only. The team remains
+                    excluded from normal, cross-team, and Not Interested
+                    Round Robin pools.
+                </div>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_crm_team_list_brokerage_hierarchy"
+            model="ir.ui.view">
+        <field name="name">crm.team.list.brokerage.hierarchy</field>
+        <field name="model">crm.team</field>
+        <field name="inherit_id" ref="sales_team.crm_team_view_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='user_id']" position="attributes">
+                <attribute name="string">Team Leader</attribute>
+            </xpath>
+            <xpath expr="//field[@name='user_id']" position="after">
+                <field name="brokerage_solo_campaign" optional="show"/>
+                <field name="brokerage_working_calendar_id"
+                       optional="hide"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_crm_team_search_brokerage_hierarchy"
+            model="ir.ui.view">
+        <field name="name">crm.team.search.brokerage.hierarchy</field>
+        <field name="model">crm.team</field>
+        <field name="inherit_id" ref="sales_team.crm_team_view_search"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='user_id']" position="attributes">
+                <attribute name="string">Team Leader</attribute>
+            </xpath>
+            <xpath expr="//field[@name='user_id']" position="after">
+                <field name="brokerage_solo_campaign"/>
+            </xpath>
+            <xpath expr="//filter[@name='team_leader']" position="after">
+                <filter name="brokerage_solo_campaign"
+                        string="Solo Campaign Teams"
+                        domain="[('brokerage_solo_campaign', '=', True)]"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

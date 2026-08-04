@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- =========================================================
+         LEAD STATUS LIST
+         ========================================================= -->
+
+    <record id="view_brokerage_crm_lead_status_list"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.lead.status.list</field>
+        <field name="model">brokerage.crm.lead.status</field>
+        <field name="arch" type="xml">
+            <list string="Lead Statuses"
+                  editable="bottom"
+                  default_order="sequence asc">
+
+                <field name="sequence"
+                       widget="handle"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="color"
+                       widget="color_picker"/>
+                <field name="is_contact_attempt"/>
+                <field name="is_successful_contact"/>
+                <field name="requires_remarks"/>
+                <field name="requires_next_activity"/>
+                <field name="is_invalid"/>
+                <field name="active"/>
+
+            </list>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         LEAD STATUS FORM
+         ========================================================= -->
+
+    <record id="view_brokerage_crm_lead_status_form"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.lead.status.form</field>
+        <field name="model">brokerage.crm.lead.status</field>
+        <field name="arch" type="xml">
+            <form string="Lead Status">
+
+                <sheet>
+
+                    <widget name="web_ribbon"
+                            title="Archived"
+                            bg_color="text-bg-danger"
+                            invisible="active"/>
+
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name"
+                                   placeholder="Status name..."/>
+                        </h1>
+                    </div>
+
+                    <group>
+                        <group string="Status Information">
+                            <field name="code"/>
+                            <field name="sequence"/>
+                            <field name="color"
+                                   widget="color_picker"/>
+                            <field name="active"/>
+                        </group>
+
+                        <group string="Behavior">
+                            <field name="is_contact_attempt"/>
+                            <field name="is_successful_contact"
+                                   invisible="not is_contact_attempt"/>
+                            <field name="is_invalid"/>
+                            <field name="requires_remarks"/>
+                            <field name="requires_next_activity"/>
+                        </group>
+                    </group>
+
+                    <group string="Allowed CRM Stages">
+                        <field name="allowed_stage_ids"
+                               widget="many2many_tags"
+                               options="{'no_create': True}"/>
+                    </group>
+
+                </sheet>
+
+            </form>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         LEAD STATUS SEARCH
+         ========================================================= -->
+
+    <record id="view_brokerage_crm_lead_status_search"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.lead.status.search</field>
+        <field name="model">brokerage.crm.lead.status</field>
+        <field name="arch" type="xml">
+            <search string="Search Lead Statuses">
+
+                <field name="name"/>
+                <field name="code"/>
+                <field name="allowed_stage_ids"/>
+
+                <separator/>
+
+                <filter name="contact_attempt_statuses"
+                        string="Contact Attempts"
+                        domain="[('is_contact_attempt', '=', True)]"/>
+
+                <filter name="successful_statuses"
+                        string="Successful Contact"
+                        domain="[('is_successful_contact', '=', True)]"/>
+
+                <filter name="invalid_statuses"
+                        string="Invalid"
+                        domain="[('is_invalid', '=', True)]"/>
+
+                <filter name="requires_remarks"
+                        string="Requires Remarks"
+                        domain="[('requires_remarks', '=', True)]"/>
+
+                <filter name="requires_next_activity"
+                        string="Requires Next Activity"
+                        domain="[('requires_next_activity', '=', True)]"/>
+
+                <filter name="archived"
+                        string="Archived"
+                        domain="[('active', '=', False)]"/>
+
+            </search>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         LEAD STATUS ACTION
+         ========================================================= -->
+
+    <record id="action_brokerage_crm_lead_status"
+            model="ir.actions.act_window">
+        <field name="name">Lead Statuses</field>
+        <field name="res_model">brokerage.crm.lead.status</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id"
+               ref="view_brokerage_crm_lead_status_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Configure brokerage lead statuses.
+            </p>
+        </field>
+    </record>
+
+</odoo>

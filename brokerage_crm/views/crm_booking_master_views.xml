@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_brokerage_crm_booking_payment_method_list"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.booking.payment.method.list</field>
+        <field name="model">brokerage.crm.booking.payment.method</field>
+        <field name="arch" type="xml">
+            <list editable="bottom" decoration-muted="not active">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_brokerage_crm_booking_payment_method_form"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.booking.payment.method.form</field>
+        <field name="model">brokerage.crm.booking.payment.method</field>
+        <field name="arch" type="xml">
+            <form string="Booking Payment Method">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="code"
+                               placeholder="Generated automatically when empty"/>
+                        <field name="sequence"/>
+                        <field name="active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_brokerage_crm_booking_payment_method"
+            model="ir.actions.act_window">
+        <field name="name">Booking Payment Methods</field>
+        <field name="res_model">brokerage.crm.booking.payment.method</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_brokerage_crm_booking_documentation_status_list"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.booking.documentation.status.list</field>
+        <field name="model">brokerage.crm.booking.documentation.status</field>
+        <field name="arch" type="xml">
+            <list editable="bottom" decoration-muted="not active">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="allows_closing"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_brokerage_crm_booking_documentation_status_form"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.booking.documentation.status.form</field>
+        <field name="model">brokerage.crm.booking.documentation.status</field>
+        <field name="arch" type="xml">
+            <form string="Booking Documentation Status">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="code"
+                               placeholder="Generated automatically when empty"/>
+                        <field name="allows_closing"/>
+                        <field name="sequence"/>
+                        <field name="active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_brokerage_crm_booking_documentation_status"
+            model="ir.actions.act_window">
+        <field name="name">Booking Documentation Statuses</field>
+        <field name="res_model">brokerage.crm.booking.documentation.status</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

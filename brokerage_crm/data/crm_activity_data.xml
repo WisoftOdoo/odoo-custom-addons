@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo noupdate="1">
+
+    <record id="mail_activity_type_call_customer"
+            model="mail.activity.type">
+        <field name="name">Call Customer</field>
+        <field name="sequence">10</field>
+        <field name="category">phonecall</field>
+        <field name="res_model">crm.lead</field>
+        <field name="summary">Call the customer</field>
+        <field name="delay_count">0</field>
+        <field name="delay_unit">days</field>
+        <field name="delay_from">previous_activity</field>
+    </record>
+
+    <record id="mail_activity_type_customer_follow_up"
+            model="mail.activity.type">
+        <field name="name">Customer Follow-up</field>
+        <field name="sequence">20</field>
+        <field name="category">phonecall</field>
+        <field name="res_model">crm.lead</field>
+        <field name="summary">Follow up with the customer</field>
+        <field name="delay_count">1</field>
+        <field name="delay_unit">days</field>
+        <field name="delay_from">previous_activity</field>
+    </record>
+
+    <record id="mail_activity_type_manager_review"
+            model="mail.activity.type">
+        <field name="name">Manager Review</field>
+        <field name="sequence">30</field>
+        <field name="category">default</field>
+        <field name="res_model">crm.lead</field>
+        <field name="summary">Review the overdue opportunity</field>
+        <field name="delay_count">0</field>
+        <field name="delay_unit">days</field>
+        <field name="delay_from">previous_activity</field>
+    </record>
+
+</odoo>

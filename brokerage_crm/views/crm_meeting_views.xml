@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- =========================================================
+         MEETING LIST
+         ========================================================= -->
+
+    <record id="view_brokerage_crm_meeting_list"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.meeting.list</field>
+        <field name="model">brokerage.crm.meeting</field>
+        <field name="arch" type="xml">
+            <list string="Meetings"
+                  default_order="scheduled_start desc"
+                  decoration-success="state == 'completed'"
+                  decoration-warning="state == 'rescheduled'"
+                  decoration-danger="state == 'cancelled'"
+                  decoration-info="state == 'scheduled'">
+
+                <field name="name"/>
+                <field name="lead_id"/>
+                <field name="responsible_user_id"/>
+                <field name="meeting_type_id"/>
+                <field name="scheduled_start"/>
+                <field name="scheduled_end"/>
+                <field name="developer_id"/>
+                <field name="project_id"/>
+                <field name="outcome_id"/>
+                <field name="next_follow_up_date"/>
+                <field name="state"
+                       widget="badge"
+                       decoration-success="state == 'completed'"
+                       decoration-warning="state == 'rescheduled'"
+                       decoration-danger="state == 'cancelled'"
+                       decoration-info="state == 'scheduled'"/>
+
+            </list>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         MEETING FORM
+         ========================================================= -->
+
+    <record id="view_brokerage_crm_meeting_form"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.meeting.form</field>
+        <field name="model">brokerage.crm.meeting</field>
+        <field name="arch" type="xml">
+            <form string="Brokerage Meeting">
+
+                <header>
+
+                    <button name="action_open_calendar_event"
+                            type="object"
+                            string="Open Calendar Event"
+                            class="btn-secondary"
+                            invisible="not calendar_event_id"/>
+
+                    <button name="action_cancel"
+                            type="object"
+                            string="Cancel Meeting"
+                            class="btn-secondary"
+                            confirm="Cancel this meeting?"
+                            invisible="state in ['completed', 'cancelled']"/>
+
+                    <field name="state"
+                           widget="statusbar"
+                           statusbar_visible="draft,scheduled,rescheduled,completed,cancelled"/>
+
+                </header>
+
+                <sheet>
+
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name"
+                                   placeholder="Meeting title..."/>
+                        </h1>
+                    </div>
+
+                    <group>
+                        <group string="Opportunity">
+                            <field name="lead_id"
+                                   options="{'no_create': True}"/>
+                            <field name="responsible_user_id"
+                                   readonly="1"/>
+                            <field name="calendar_event_id"
+                                   readonly="1"/>
+                        </group>
+
+                        <group string="Meeting Type">
+                            <field name="meeting_type_id"/>
+                            <field name="meeting_type_location_mode" invisible="1"/>
+                            <field name="location"
+                                   invisible="meeting_type_location_mode != 'location'"/>
+                            <field name="meeting_link"
+                                   widget="url"
+                                   invisible="meeting_type_location_mode != 'online'"/>
+                        </group>
+                    </group>
+
+                    <group string="Schedule">
+                        <group>
+                            <field name="scheduled_start"/>
+                            <field name="scheduled_end"/>
+                        </group>
+
+                        <group>
+                            <field name="actual_start"/>
+                            <field name="actual_end"/>
+                        </group>
+                    </group>
+
+                    <group string="Developer and Project">
+                        <group>
+                            <field name="developer_id"/>
+                            <field name="project_id"
+                                   context="{'default_developer_id': developer_id}"/>
+                        </group>
+
+                        <group>
+                            <field name="relationship_manager_name"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+
+                        <page string="Meeting Result"
+                              name="meeting_result">
+
+                            <group>
+                                <field name="outcome_id"/>
+                                <field name="next_follow_up_date"/>
+                            </group>
+
+                            <group string="Customer Requirements">
+                                <field name="customer_requirements"
+                                       placeholder="Requirements discussed during the meeting..."/>
+                            </group>
+
+                            <group string="Agent Remarks">
+                                <field name="agent_remarks"
+                                       placeholder="Enter the meeting result..."/>
+                            </group>
+
+                            <group string="Next Action">
+                                <field name="next_action"
+                                       placeholder="Describe the next action..."/>
+                            </group>
+
+                        </page>
+
+                    </notebook>
+
+                </sheet>
+
+                <chatter/>
+
+            </form>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         MEETING SEARCH
+         ========================================================= -->
+
+    <record id="view_brokerage_crm_meeting_search"
+            model="ir.ui.view">
+        <field name="name">brokerage.crm.meeting.search</field>
+        <field name="model">brokerage.crm.meeting</field>
+        <field name="arch" type="xml">
+            <search string="Search Meetings">
+
+                <field name="name"/>
+                <field name="lead_id"/>
+                <field name="responsible_user_id"/>
+                <field name="developer_id"/>
+                <field name="project_id"/>
+                <field name="meeting_type_id"/>
+                <field name="outcome_id"/>
+
+                <separator/>
+
+                <filter name="my_meetings"
+                        string="My Meetings"
+                        domain="[('responsible_user_id', '=', uid)]"/>
+
+                <filter name="scheduled_meetings"
+                        string="Scheduled"
+                        domain="[('state', '=', 'scheduled')]"/>
+
+                <filter name="completed_meetings"
+                        string="Completed"
+                        domain="[('state', '=', 'completed')]"/>
+
+                <filter name="cancelled_meetings"
+                        string="Cancelled"
+                        domain="[('state', '=', 'cancelled')]"/>
+
+                <filter name="rescheduled_meetings"
+                        string="Rescheduled"
+                        domain="[('state', '=', 'rescheduled')]"/>
+
+                <filter name="meeting_date"
+                        string="Meeting Date"
+                        date="scheduled_start"/>
+
+                <group>
+                    <filter name="group_salesperson"
+                            string="Salesperson"
+                            context="{'group_by': 'responsible_user_id'}"/>
+
+                    <filter name="group_state"
+                            string="Status"
+                            context="{'group_by': 'state'}"/>
+
+                    <filter name="group_type"
+                            string="Meeting Type"
+                            context="{'group_by': 'meeting_type_id'}"/>
+
+                    <filter name="group_developer"
+                            string="Developer"
+                            context="{'group_by': 'developer_id'}"/>
+
+                    <filter name="group_project"
+                            string="Project"
+                            context="{'group_by': 'project_id'}"/>
+
+                    <filter name="group_month"
+                            string="Month"
+                            context="{'group_by': 'scheduled_start:month'}"/>
+                </group>
+
+            </search>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         MEETING ACTION
+         ========================================================= -->
+
+    <record id="action_brokerage_crm_meeting"
+            model="ir.actions.act_window">
+        <field name="name">Meetings</field>
+        <field name="res_model">brokerage.crm.meeting</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id"
+               ref="view_brokerage_crm_meeting_search"/>
+        <field name="context">{'search_default_my_meetings': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No meetings found.
+            </p>
+            <p>
+                Schedule meetings from the CRM opportunity form.
+            </p>
+        </field>
+    </record>
+
+</odoo>

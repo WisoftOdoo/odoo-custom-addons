@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- =========================================================
+         BROKERAGE CONFIGURATION ROOT
+         ========================================================= -->
+
+    <menuitem id="menu_brokerage_crm_configuration"
+              name="Brokerage Configuration"
+              parent="crm.crm_menu_config"
+              sequence="60"
+              groups="brokerage_crm.group_brokerage_team_leader"/>
+
+    <!-- =========================================================
+         MASTER DATA
+         ========================================================= -->
+
+    <menuitem id="menu_brokerage_master_data"
+              name="Master Data"
+              parent="menu_brokerage_crm_configuration"
+              sequence="10"/>
+
+    <menuitem id="menu_brokerage_developer"
+              name="Developers"
+              parent="menu_brokerage_master_data"
+              action="action_brokerage_developer"
+              sequence="10"/>
+
+    <menuitem id="menu_brokerage_project"
+              name="Projects"
+              parent="menu_brokerage_master_data"
+              action="action_brokerage_project"
+              sequence="20"/>
+
+    <menuitem id="menu_brokerage_lead_sources"
+              name="Lead Sources"
+              parent="menu_brokerage_master_data"
+              action="action_utm_source_brokerage"
+              sequence="30"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_lead_status"
+              name="Lead Statuses"
+              parent="menu_brokerage_master_data"
+              action="action_brokerage_crm_lead_status"
+              sequence="40"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_lead_quality"
+              name="Lead Qualities"
+              parent="menu_brokerage_master_data"
+              action="action_brokerage_crm_lead_quality"
+              sequence="50"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_contact_methods"
+              name="Contact Methods"
+              parent="menu_brokerage_master_data"
+              action="action_brokerage_crm_contact_method"
+              sequence="60"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_meeting_types"
+              name="Meeting Types"
+              parent="menu_brokerage_master_data"
+              action="action_brokerage_crm_meeting_type"
+              sequence="70"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_meeting_outcomes"
+              name="Meeting Outcomes"
+              parent="menu_brokerage_master_data"
+              action="action_brokerage_crm_meeting_outcome"
+              sequence="80"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_booking_payment_methods"
+              name="Booking Payment Methods"
+              parent="menu_brokerage_master_data"
+              action="action_brokerage_crm_booking_payment_method"
+              sequence="90"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_booking_documentation_statuses"
+              name="Booking Documentation Statuses"
+              parent="menu_brokerage_master_data"
+              action="action_brokerage_crm_booking_documentation_status"
+              sequence="100"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <!-- =========================================================
+         ASSIGNMENT
+         ========================================================= -->
+
+    <menuitem id="menu_brokerage_assignment"
+              name="Assignment"
+              parent="menu_brokerage_crm_configuration"
+              sequence="20"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_round_robin"
+              name="Round Robin"
+              parent="menu_brokerage_assignment"
+              action="action_brokerage_crm_round_robin"
+              sequence="10"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_team_hierarchy"
+              name="Team Hierarchy"
+              parent="menu_brokerage_assignment"
+              action="sales_team.crm_team_action_config"
+              sequence="5"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <!-- =========================================================
+         SLA
+         ========================================================= -->
+
+    <menuitem id="menu_brokerage_sla"
+              name="SLA"
+              parent="menu_brokerage_crm_configuration"
+              sequence="30"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_sla_rules"
+              name="SLA Rules"
+              parent="menu_brokerage_sla"
+              action="action_brokerage_crm_sla_rule"
+              sequence="10"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_whatsapp_log"
+              name="WhatsApp Delivery Log"
+              parent="menu_brokerage_crm_configuration"
+              action="action_brokerage_whatsapp_notification"
+              sequence="40"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_email_log"
+              name="Email Delivery Log"
+              parent="menu_brokerage_crm_configuration"
+              action="action_brokerage_crm_email_notification"
+              sequence="45"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_telephony"
+              name="Telephony"
+              parent="menu_brokerage_crm_configuration"
+              sequence="50"
+              active="False"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_telephony_provider"
+              name="Providers"
+              parent="menu_brokerage_telephony"
+              action="action_brokerage_telephony_provider"
+              sequence="10"
+              active="False"
+              groups="base.group_system"/>
+
+    <menuitem id="menu_brokerage_telephony_events"
+              name="Event Log"
+              parent="menu_brokerage_telephony"
+              action="action_brokerage_telephony_event"
+              sequence="20"
+              active="False"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <!-- =========================================================
+         MEETING MENU UNDER CRM
+         ========================================================= -->
+
+    <menuitem id="menu_brokerage_crm_meetings"
+              name="Meetings"
+              parent="crm.crm_menu_root"
+              action="action_brokerage_crm_meeting"
+              sequence="45"
+              groups="brokerage_crm.group_brokerage_crm_user"/>
+
+    <menuitem id="menu_brokerage_telephony_calls"
+              name="PBX Call History"
+              parent="crm.crm_menu_root"
+              action="action_brokerage_telephony_call"
+              sequence="46"
+              active="False"
+              groups="brokerage_crm.group_brokerage_crm_user"/>
+
+</odoo>

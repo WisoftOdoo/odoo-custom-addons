@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+<data noupdate="1">
+
+    <record id="crm_stage_kyc_in_progress" model="crm.stage">
+        <field name="name">KYC in Progress</field>
+        <field name="sequence">9</field>
+        <field name="brokerage_code">kyc</field>
+        <field name="fold">False</field>
+    </record>
+
+    <record id="crm_stage_not_interested" model="crm.stage">
+        <field name="name">Not Interested</field>
+        <field name="sequence">90</field>
+        <field name="brokerage_code">not_interested</field>
+        <field name="fold">False</field>
+    </record>
+
+</data>
+
+    <function model="crm.stage"
+              name="_brokerage_place_kyc_before_booking"/>
+
+</odoo>

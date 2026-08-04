@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+  <data noupdate="1">
+    <record id="booking_payment_method_bank_transfer"
+            model="brokerage.crm.booking.payment.method">
+        <field name="name">Bank Transfer</field>
+        <field name="code">bank_transfer</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="booking_payment_method_cheque"
+            model="brokerage.crm.booking.payment.method">
+        <field name="name">Cheque</field>
+        <field name="code">cheque</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="booking_payment_method_card"
+            model="brokerage.crm.booking.payment.method">
+        <field name="name">Card</field>
+        <field name="code">card</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="booking_payment_method_cash"
+            model="brokerage.crm.booking.payment.method">
+        <field name="name">Cash</field>
+        <field name="code">cash</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="booking_payment_method_mortgage"
+            model="brokerage.crm.booking.payment.method">
+        <field name="name">Mortgage / Bank Finance</field>
+        <field name="code">mortgage</field>
+        <field name="sequence">50</field>
+    </record>
+
+    <record id="booking_documentation_status_pending"
+            model="brokerage.crm.booking.documentation.status">
+        <field name="name">Pending</field>
+        <field name="code">pending</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="booking_documentation_status_partial"
+            model="brokerage.crm.booking.documentation.status">
+        <field name="name">Partially Received</field>
+        <field name="code">partial</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="booking_documentation_status_complete"
+            model="brokerage.crm.booking.documentation.status">
+        <field name="name">Complete</field>
+        <field name="code">complete</field>
+        <field name="sequence">30</field>
+        <field name="allows_closing" eval="True"/>
+    </record>
+    <record id="booking_documentation_status_rejected"
+            model="brokerage.crm.booking.documentation.status">
+        <field name="name">Rejected</field>
+        <field name="code">rejected</field>
+        <field name="sequence">40</field>
+    </record>
+  </data>
+
+    <function model="brokerage.crm.booking.documentation.status"
+              name="_backfill_pending_booking_status"/>
+</odoo>

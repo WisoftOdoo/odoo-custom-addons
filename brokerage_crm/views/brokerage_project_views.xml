@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- =========================================================
+         PROJECT LIST VIEW
+         ========================================================= -->
+
+    <record id="view_brokerage_project_list" model="ir.ui.view">
+        <field name="name">brokerage.project.list</field>
+        <field name="model">brokerage.project</field>
+        <field name="arch" type="xml">
+            <list string="Projects"
+                  default_order="developer_id asc, name asc"
+                  decoration-muted="not active">
+
+                <field name="name"/>
+                <field name="code"/>
+                <field name="developer_id"/>
+                <field name="location"/>
+                <field name="project_type"/>
+                <field name="expected_completion_date"/>
+                <field name="active"/>
+
+            </list>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         PROJECT FORM VIEW
+         ========================================================= -->
+
+    <record id="view_brokerage_project_form" model="ir.ui.view">
+        <field name="name">brokerage.project.form</field>
+        <field name="model">brokerage.project</field>
+        <field name="arch" type="xml">
+            <form string="Project">
+
+                <sheet>
+
+                    <widget name="web_ribbon"
+                            title="Archived"
+                            bg_color="text-bg-danger"
+                            invisible="active"/>
+
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name"
+                                   placeholder="Project name..."/>
+                        </h1>
+                    </div>
+
+                    <group>
+                        <group string="Project Information">
+                            <field name="developer_id"
+                                   options="{'no_create_edit': False}"/>
+                            <field name="code"/>
+                            <field name="location"/>
+                        </group>
+
+                        <group string="Classification">
+                            <field name="project_type"/>
+                            <field name="expected_completion_date"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Notes" name="notes">
+                            <field name="notes"
+                                   placeholder="Project notes..."/>
+                        </page>
+                    </notebook>
+
+                </sheet>
+
+            </form>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         PROJECT SEARCH VIEW
+         ========================================================= -->
+
+    <record id="view_brokerage_project_search" model="ir.ui.view">
+        <field name="name">brokerage.project.search</field>
+        <field name="model">brokerage.project</field>
+        <field name="arch" type="xml">
+            <search string="Search Projects">
+
+                <field name="name"/>
+                <field name="code"/>
+                <field name="developer_id"/>
+                <field name="location"/>
+                <field name="project_type"/>
+
+                <separator/>
+
+                <filter name="active_projects"
+                        string="Active"
+                        domain="[('active', '=', True)]"/>
+
+                <filter name="archived_projects"
+                        string="Archived"
+                        domain="[('active', '=', False)]"/>
+
+                <group>
+                    <filter name="group_developer"
+                            string="Developer"
+                            context="{'group_by': 'developer_id'}"/>
+
+                    <filter name="group_location"
+                            string="Location"
+                            context="{'group_by': 'location'}"/>
+
+                    <filter name="group_project_type"
+                            string="Project Type"
+                            context="{'group_by': 'project_type'}"/>
+
+                    <filter name="group_completion"
+                            string="Completion Date"
+                            context="{'group_by': 'expected_completion_date'}"/>
+                </group>
+
+            </search>
+        </field>
+    </record>
+
+    <!-- =========================================================
+         PROJECT ACTION
+         ========================================================= -->
+
+    <record id="action_brokerage_project" model="ir.actions.act_window">
+        <field name="name">Projects</field>
+        <field name="res_model">brokerage.project</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id"
+               ref="view_brokerage_project_search"/>
+        <field name="context">{'search_default_active_projects': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first off-plan project.
+            </p>
+            <p>
+                Each project must belong to a property developer.
+            </p>
+        </field>
+    </record>
+
+</odoo>

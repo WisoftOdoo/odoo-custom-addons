@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo noupdate="1">
+
+    <record id="lead_quality_hot"
+            model="brokerage.crm.lead.quality">
+        <field name="name">Hot</field>
+        <field name="code">hot</field>
+        <field name="sequence">10</field>
+        <field name="color">1</field>
+        <field name="default_probability">80</field>
+        <field name="active">True</field>
+    </record>
+
+    <record id="lead_quality_warm"
+            model="brokerage.crm.lead.quality">
+        <field name="name">Warm</field>
+        <field name="code">warm</field>
+        <field name="sequence">20</field>
+        <field name="color">2</field>
+        <field name="default_probability">50</field>
+        <field name="active">True</field>
+    </record>
+
+    <record id="lead_quality_cold"
+            model="brokerage.crm.lead.quality">
+        <field name="name">Cold</field>
+        <field name="code">cold</field>
+        <field name="sequence">30</field>
+        <field name="color">4</field>
+        <field name="default_probability">20</field>
+        <field name="active">True</field>
+    </record>
+
+</odoo>

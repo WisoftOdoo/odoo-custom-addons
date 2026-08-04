@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="sequence_brokerage_telephony_call" model="ir.sequence">
+        <field name="name">Brokerage Telephony Call</field>
+        <field name="code">brokerage.telephony.call</field>
+        <field name="prefix">CALL/</field>
+        <field name="padding">6</field>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo>

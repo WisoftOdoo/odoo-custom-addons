@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- =========================================================
+         MODULE CATEGORY
+         ========================================================= -->
+
+    <record id="module_category_brokerage_crm"
+            model="ir.module.category">
+        <field name="name">Brokerage CRM</field>
+        <field name="description">
+            Brokerage CRM roles and access rights
+        </field>
+        <field name="sequence">25</field>
+    </record>
+
+    <!-- =========================================================
+         ODOO 19 PRIVILEGE
+         category_id now belongs to res.groups.privilege
+         ========================================================= -->
+
+    <record id="privilege_brokerage_crm"
+            model="res.groups.privilege">
+        <field name="name">Brokerage CRM</field>
+        <field name="sequence">25</field>
+        <field name="category_id"
+               ref="brokerage_crm.module_category_brokerage_crm"/>
+    </record>
+
+    <!-- =========================================================
+         AGENT
+         ========================================================= -->
+
+    <record id="group_brokerage_crm_user"
+            model="res.groups">
+        <field name="name">Agent</field>
+        <field name="sequence">10</field>
+        <field name="privilege_id"
+               ref="brokerage_crm.privilege_brokerage_crm"/>
+        <field name="implied_ids"
+               eval="[(4, ref('sales_team.group_sale_salesman'))]"/>
+        <field name="comment">
+            Can work on assigned brokerage opportunities,
+            contact attempts, activities, and meetings.
+        </field>
+    </record>
+
+    <!-- =========================================================
+         TEAM LEADER
+         ========================================================= -->
+
+    <record id="group_brokerage_team_leader"
+            model="res.groups">
+        <field name="name">Team Leader</field>
+        <field name="sequence">20</field>
+        <field name="privilege_id"
+               ref="brokerage_crm.privilege_brokerage_crm"/>
+        <field name="implied_ids"
+               eval="[
+                   (4, ref('brokerage_crm.group_brokerage_crm_user'))
+               ]"/>
+        <field name="comment">
+            Can supervise team opportunities, view assignment history,
+            monitor SLA records, and perform permitted reassignments.
+        </field>
+    </record>
+
+    <!-- =========================================================
+         CONFIGURATION MANAGER
+         ========================================================= -->
+
+    <record id="group_brokerage_sales_manager"
+            model="res.groups">
+        <field name="name">Configuration Manager</field>
+        <field name="sequence">30</field>
+        <field name="privilege_id"
+               ref="brokerage_crm.privilege_brokerage_crm"/>
+        <field name="implied_ids"
+               eval="[
+                   (4, ref('brokerage_crm.group_brokerage_team_leader')),
+                   (4, ref('sales_team.group_sale_manager'))
+               ]"/>
+        <field name="comment">
+            Administrative role for master data, Round Robin configuration,
+            SLA rules, recovery, and reporting. It is not part of the
+            Team Leader to Agent operational hierarchy.
+        </field>
+    </record>
+
+    <!-- =========================================================
+         ADMINISTRATOR
+         ========================================================= -->
+
+    <record id="group_brokerage_admin"
+            model="res.groups">
+        <field name="name">Administrator</field>
+        <field name="sequence">40</field>
+        <field name="privilege_id"
+               ref="brokerage_crm.privilege_brokerage_crm"/>
+        <field name="implied_ids"
+               eval="[
+                   (4, ref('brokerage_crm.group_brokerage_sales_manager'))
+               ]"/>
+        <field name="comment">
+            Full Brokerage CRM configuration and administration access.
+        </field>
+    </record>
+
+    <record id="rule_brokerage_telephony_call_user"
+            model="ir.rule">
+        <field name="name">Personal Brokerage Telephony Calls</field>
+        <field name="model_id"
+               ref="model_brokerage_telephony_call"/>
+        <field name="domain_force">[('user_id', '=', user.id)]</field>
+        <field name="groups"
+               eval="[(4, ref('brokerage_crm.group_brokerage_crm_user'))]"/>
+    </record>
+
+    <record id="rule_brokerage_team_leader_leads"
+            model="ir.rule">
+        <field name="name">Brokerage Team Leader Leads</field>
+        <field name="model_id" ref="crm.model_crm_lead"/>
+        <field name="domain_force">
+            ['|',
+                ('user_id', '=', user.id),
+                ('team_id.user_id', '=', user.id)
+            ]
+        </field>
+        <field name="groups"
+               eval="[(4, ref('brokerage_crm.group_brokerage_team_leader'))]"/>
+    </record>
+
+    <record id="rule_brokerage_telephony_provider_company"
+            model="ir.rule">
+        <field name="name">Brokerage Telephony Providers by Company</field>
+        <field name="model_id"
+               ref="model_brokerage_telephony_provider"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        <field name="groups"
+               eval="[(4, ref('brokerage_crm.group_brokerage_crm_user'))]"/>
+    </record>
+
+    <record id="rule_brokerage_telephony_call_manager"
+            model="ir.rule">
+        <field name="name">All Brokerage Telephony Calls for Managers</field>
+        <field name="model_id"
+               ref="model_brokerage_telephony_call"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups"
+               eval="[(4, ref('brokerage_crm.group_brokerage_sales_manager'))]"/>
+    </record>
+
+</odoo>
