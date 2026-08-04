@@ -1,7 +1,12 @@
+import logging
+
 from markupsafe import Markup
 
 from odoo import api, fields, models, _
 from odoo.exceptions import AccessError, ValidationError
+
+
+_logger = logging.getLogger(__name__)
 
 
 class BrokerageCrmAssignmentHistory(models.Model):
@@ -176,7 +181,31 @@ class BrokerageCrmAssignmentHistory(models.Model):
     def create(self, vals_list):
         histories = super().create(vals_list)
         histories._notify_new_assignee_in_odoo_once()
+        histories._queue_new_assignee_email_once()
         return histories
+
+    def _queue_new_assignee_email_once(self):
+        """Queue one independent email for every assignment audit event."""
+        for history in self.sudo():
+            if (
+                not history.lead_id
+                or not history.new_user_id
+                or not history.new_user_id.active
+                or history.new_user_id.share
+            ):
+                continue
+            try:
+                self.env[
+                    "brokerage.crm.email.notification"
+                ].sudo().queue_assignment(history)
+            except Exception:
+                # Assignment must never roll back because an alert channel
+                # is temporarily unavailable.
+                _logger.exception(
+                    "Could not queue assignment email for history %s",
+                    history.id,
+                )
+        return True
 
     def _notify_new_assignee_in_odoo_once(self):
         """Send one persistent Odoo notification for each assignment event.

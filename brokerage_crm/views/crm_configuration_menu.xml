@@ -74,6 +74,20 @@
               sequence="80"
               groups="brokerage_crm.group_brokerage_sales_manager"/>
 
+    <menuitem id="menu_brokerage_booking_payment_methods"
+              name="Booking Payment Methods"
+              parent="menu_brokerage_master_data"
+              action="action_brokerage_crm_booking_payment_method"
+              sequence="90"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_booking_documentation_statuses"
+              name="Booking Documentation Statuses"
+              parent="menu_brokerage_master_data"
+              action="action_brokerage_crm_booking_documentation_status"
+              sequence="100"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
     <!-- =========================================================
          ASSIGNMENT
          ========================================================= -->
@@ -120,6 +134,13 @@
               parent="menu_brokerage_crm_configuration"
               action="action_brokerage_whatsapp_notification"
               sequence="40"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
+    <menuitem id="menu_brokerage_email_log"
+              name="Email Delivery Log"
+              parent="menu_brokerage_crm_configuration"
+              action="action_brokerage_crm_email_notification"
+              sequence="45"
               groups="brokerage_crm.group_brokerage_sales_manager"/>
 
     <menuitem id="menu_brokerage_telephony"

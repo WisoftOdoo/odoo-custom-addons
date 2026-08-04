@@ -336,6 +336,81 @@
 
                 </page>
 
+                <!-- KYC -->
+
+                <page string="KYC"
+                      name="brokerage_kyc_booking">
+
+                    <group string="KYC Control">
+                        <group>
+                            <field name="kyc_owner_id"/>
+                            <field name="kyc_status"/>
+                            <field name="kyc_nationality_id"
+                                   options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="kyc_source_of_funds"/>
+                        </group>
+
+                        <group>
+                            <field name="kyc_identity_type"/>
+                            <field name="kyc_identity_number"/>
+                            <field name="kyc_identity_expiry_date"/>
+                            <field name="kyc_verified_by_id"/>
+                            <field name="kyc_verified_datetime"/>
+                        </group>
+                    </group>
+
+                    <group string="KYC Documents and Verification Notes">
+                        <field name="kyc_document_ids"
+                               widget="many2many_binary"/>
+                        <field name="kyc_notes"
+                               placeholder="Record verification notes, exceptions or follow-up requirements..."/>
+                    </group>
+
+                </page>
+
+                <!-- BOOKING / DOCUMENTATION -->
+
+                <page string="Booking / Documentation"
+                      name="brokerage_booking_documentation">
+
+                    <group string="Booking Details">
+                        <group>
+                            <field name="final_developer_id"/>
+                            <field name="final_project_id"
+                                   context="{'default_developer_id': final_developer_id}"/>
+                            <field name="final_unit_type"/>
+                            <field name="booking_unit_reference"/>
+                        </group>
+
+                        <group>
+                            <field name="estimated_property_value"
+                                   string="Property Value"/>
+                            <field name="booking_amount"/>
+                            <field name="booking_date"/>
+                            <field name="booking_payment_method_id"
+                                   options="{'no_create': False, 'no_create_edit': False}"/>
+                        </group>
+                    </group>
+
+                    <group string="Documentation Control">
+                        <group>
+                            <field name="booking_documentation_status_id"
+                                   options="{'no_create': False, 'no_create_edit': False}"/>
+                            <field name="booking_documentation_owner_id"/>
+                            <field name="booking_documentation_completed_by_id"/>
+                            <field name="booking_documentation_completed_datetime"/>
+                        </group>
+
+                        <group>
+                            <field name="booking_document_ids"
+                                   widget="many2many_binary"/>
+                            <field name="booking_notes"
+                                   placeholder="Record booking form, payment and documentation notes..."/>
+                        </group>
+                    </group>
+
+                </page>
+
                 <!-- SLA AND ASSIGNMENT -->
 
                 <page string="SLA and Assignment"

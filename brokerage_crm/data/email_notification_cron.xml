@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo noupdate="1">
+    <record id="ir_cron_brokerage_email_status" model="ir.cron">
+        <field name="name">Brokerage: Update Email Delivery Status</field>
+        <field name="model_id" ref="model_brokerage_crm_email_notification"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_sync_states()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">minutes</field>
+        <field name="active">True</field>
+        <field name="user_id" ref="base.user_root"/>
+    </record>
+</odoo>

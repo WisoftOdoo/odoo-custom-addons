@@ -9,8 +9,10 @@ from . import brokerage_project
 from . import crm_contact_method
 from . import crm_meeting_type
 from . import crm_meeting_outcome
+from . import crm_booking_master
 from . import crm_contact_attempt
 from . import crm_meeting
+from . import email_notification
 from . import crm_assignment_history
 from . import crm_round_robin_agent
 from . import crm_round_robin
