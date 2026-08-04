@@ -1,3 +1,4 @@
+import base64
 from datetime import timedelta
 
 from odoo import fields
@@ -346,3 +347,202 @@ class TestLeadValidation(TransactionCase):
         })
         current_lead.write({"stage_id": stages[3].id})
         self.assertNotEqual(new_meeting.id, old_meeting.id)
+
+    def test_booking_requires_complete_verified_kyc(self):
+        agent = self.env["res.users"].create({
+            "name": "Booking KYC Agent",
+            "login": "booking.kyc.agent@test.invalid",
+            "group_ids": [(6, 0, [
+                self.env.ref(
+                    "brokerage_crm.group_brokerage_crm_user"
+                ).id,
+            ])],
+        })
+        (
+            assigned_stage,
+            hot_stage,
+            kyc_stage,
+            booking_stage,
+            won_stage,
+        ) = self.env[
+            "crm.stage"
+        ].create([
+            {
+                "name": "KYC Test Assigned",
+                "sequence": 20,
+                "brokerage_code": "assigned",
+            },
+            {
+                "name": "KYC Test Hot",
+                "sequence": 80,
+                "brokerage_code": "hot",
+            },
+            {
+                "name": "KYC Test In Progress",
+                "sequence": 90,
+                "brokerage_code": "kyc",
+            },
+            {
+                "name": "KYC Test Booking",
+                "sequence": 100,
+                "brokerage_code": "booking",
+            },
+            {
+                "name": "KYC Test Closed Won",
+                "sequence": 110,
+                "brokerage_code": "won",
+                "is_won": True,
+            },
+        ])
+        developer = self.env["brokerage.developer"].create({
+            "name": "KYC Test Developer",
+        })
+        project = self.env["brokerage.project"].create({
+            "name": "KYC Test Project",
+            "developer_id": developer.id,
+        })
+        successful_status = self.env[
+            "brokerage.crm.lead.status"
+        ].create({
+            "name": "KYC Successful Contact",
+            "code": "kyc_successful_contact",
+            "is_contact_attempt": True,
+            "is_successful_contact": True,
+        })
+        lead = self.env["crm.lead"].create({
+            "name": "Booking KYC Validation",
+            "user_id": agent.id,
+            "stage_id": assigned_stage.id,
+        })
+        self.env["brokerage.crm.contact.attempt"].with_user(agent).create({
+            "lead_id": lead.id,
+            "user_id": agent.id,
+            "method": "call",
+            "status_id": successful_status.id,
+        })
+        meeting_start = fields.Datetime.now()
+        self.env["brokerage.crm.meeting"].with_user(agent).create({
+            "lead_id": lead.id,
+            "name": "KYC Completed Meeting",
+            "state": "completed",
+            "meeting_type": "phone",
+            "scheduled_start": meeting_start,
+            "scheduled_end": meeting_start + timedelta(minutes=30),
+            "actual_start": meeting_start,
+            "actual_end": meeting_start + timedelta(minutes=20),
+            "outcome": "interested",
+            "developer_id": developer.id,
+            "project_id": project.id,
+            "agent_remarks": "Customer is proceeding with KYC.",
+            "next_action": "Collect identity documents.",
+            "next_follow_up_date": fields.Date.today(),
+        })
+        lead.with_user(agent).write({
+            "final_developer_id": developer.id,
+            "final_project_id": project.id,
+            "final_unit_type": "2 Bedroom",
+            "expected_booking_date": fields.Date.today()
+            + timedelta(days=7),
+        })
+
+        with self.assertRaisesRegex(ValidationError, "KYC owner"):
+            lead.with_user(agent).write({"stage_id": hot_stage.id})
+
+        lead.with_user(agent).write({"kyc_owner_id": agent.id})
+        lead.with_user(agent).write({"stage_id": hot_stage.id})
+        lead.with_user(agent).write({"stage_id": kyc_stage.id})
+        self.assertEqual(lead.kyc_status, "in_progress")
+
+        with self.assertRaisesRegex(ValidationError, "marked as Verified"):
+            lead.with_user(agent).write({"stage_id": booking_stage.id})
+
+        with self.assertRaisesRegex(ValidationError, "Complete these KYC"):
+            lead.with_user(agent).write({"kyc_status": "verified"})
+
+        attachment = self.env["ir.attachment"].with_user(agent).create({
+            "name": "identity-document.pdf",
+            "datas": base64.b64encode(b"test identity document"),
+            "mimetype": "application/pdf",
+            "res_model": "crm.lead",
+            "res_id": lead.id,
+        })
+        lead.with_user(agent).write({
+            "kyc_identity_type": "passport",
+            "kyc_identity_number": "P1234567",
+            "kyc_identity_expiry_date": fields.Date.today()
+            + timedelta(days=365),
+            "kyc_nationality_id": self.env.ref("base.ae").id,
+            "kyc_source_of_funds": "salary",
+            "kyc_document_ids": [(6, 0, attachment.ids)],
+            "kyc_status": "verified",
+        })
+        self.assertEqual(lead.kyc_verified_by_id, agent)
+        self.assertTrue(lead.kyc_verified_datetime)
+
+        with self.assertRaisesRegex(
+            ValidationError,
+            "Booking / Documentation details",
+        ):
+            lead.with_user(agent).write({"stage_id": booking_stage.id})
+
+        payment_method = self.env[
+            "brokerage.crm.booking.payment.method"
+        ].create({
+            "name": "KYC Test Bank Transfer",
+        })
+        pending_status = self.env[
+            "brokerage.crm.booking.documentation.status"
+        ].create({
+            "name": "KYC Test Documentation Pending",
+        })
+        complete_status = self.env[
+            "brokerage.crm.booking.documentation.status"
+        ].create({
+            "name": "KYC Test Documentation Complete",
+            "allows_closing": True,
+        })
+        lead.with_user(agent).write({
+            "booking_unit_reference": "TOWER-A-1204",
+            "estimated_property_value": 1_000_000,
+            "booking_amount": 100_000,
+            "booking_date": fields.Date.today(),
+            "booking_payment_method_id": payment_method.id,
+            "booking_documentation_status_id": pending_status.id,
+            "booking_documentation_owner_id": agent.id,
+        })
+        lead.with_user(agent).write({"stage_id": booking_stage.id})
+        self.assertEqual(lead.stage_id, booking_stage)
+
+        with self.assertRaisesRegex(
+            ValidationError,
+            "attach the booking documents",
+        ):
+            lead.with_user(agent).write({"stage_id": won_stage.id})
+
+        with self.assertRaisesRegex(
+            ValidationError,
+            "Attach at least one Booking Document",
+        ):
+            lead.with_user(agent).write({
+                "booking_documentation_status_id": complete_status.id,
+            })
+
+        booking_attachment = self.env["ir.attachment"].with_user(agent).create({
+            "name": "booking-form.pdf",
+            "datas": base64.b64encode(b"test booking form"),
+            "mimetype": "application/pdf",
+            "res_model": "crm.lead",
+            "res_id": lead.id,
+        })
+        lead.with_user(agent).write({
+            "booking_document_ids": [(6, 0, booking_attachment.ids)],
+            "booking_documentation_status_id": complete_status.id,
+        })
+        self.assertEqual(
+            lead.booking_documentation_completed_by_id,
+            agent,
+        )
+        self.assertTrue(lead.booking_documentation_completed_datetime)
+
+        lead.with_user(agent).write({"stage_id": won_stage.id})
+        self.assertEqual(lead.stage_id, won_stage)

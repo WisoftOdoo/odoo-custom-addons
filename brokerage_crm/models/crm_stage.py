@@ -1,4 +1,4 @@
-from odoo import fields, models
+from odoo import api, fields, models
 
 
 class CrmStage(models.Model):
@@ -23,3 +23,34 @@ class CrmStage(models.Model):
         index=True,
         copy=False,
     )
+
+    @api.model
+    def _brokerage_place_kyc_before_booking(self):
+        """Keep the approved KYC stage immediately before Booking.
+
+        Existing customer stages are updated in place so their identifiers,
+        team restrictions and lead links remain untouched.
+        """
+        kyc_stage = self.env.ref(
+            "brokerage_crm.crm_stage_kyc_in_progress",
+            raise_if_not_found=False,
+        )
+        if not kyc_stage:
+            return True
+
+        booking_stage = self.search([
+            ("brokerage_code", "=", "booking"),
+        ], order="sequence, id", limit=1)
+        won_stage = self.search([
+            ("brokerage_code", "=", "won"),
+        ], order="sequence, id", limit=1)
+
+        if booking_stage and booking_stage.sequence <= kyc_stage.sequence:
+            booking_stage.sequence = kyc_stage.sequence + 1
+        if (
+            won_stage
+            and booking_stage
+            and won_stage.sequence <= booking_stage.sequence
+        ):
+            won_stage.sequence = booking_stage.sequence + 1
+        return True

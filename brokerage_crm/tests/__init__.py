@@ -6,6 +6,7 @@ from . import test_interaction_master
 from . import test_master_data_creation
 from . import test_not_interested
 from . import test_whatsapp
+from . import test_email_notification
 from . import test_telephony
 from . import test_assignment_recovery
 from . import test_hierarchy

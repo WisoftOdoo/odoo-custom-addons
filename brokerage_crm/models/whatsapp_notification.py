@@ -36,6 +36,7 @@ class BrokerageWhatsAppNotification(models.Model):
     notification_type = fields.Selection(
         selection=[
             ("assignment", "Lead Assignment"),
+            ("repeat_enquiry", "Repeat Enquiry"),
             ("reminder_1", "SLA Reminder 1"),
             ("reminder_2", "SLA Reminder 2"),
             ("reminder_3", "SLA Reminder 3"),
@@ -188,6 +189,26 @@ class BrokerageWhatsAppNotification(models.Model):
                 "assignment:%s:%s:%s"
                 % (lead.id, assignment_key, user.id)
             ),
+        )
+
+    @api.model
+    def queue_repeat_enquiry(self, lead, user, event_key, action_text):
+        lead.ensure_one()
+        user.ensure_one()
+        if not self._is_enabled():
+            return self.browse()
+        body = "\n".join([
+            _("*Repeat CRM Enquiry*"),
+            *(self._lead_lines(lead)),
+            str(action_text),
+            _("Please open the existing lead and review the new enquiry."),
+        ])
+        return self._queue_notification(
+            lead=lead,
+            user=user,
+            notification_type="repeat_enquiry",
+            body=body,
+            deduplication_key=event_key,
         )
 
     @api.model

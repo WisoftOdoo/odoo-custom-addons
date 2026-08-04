@@ -24,6 +24,13 @@ class TestSla(TransactionCase):
         cls.env.company.resource_calendar_id = always_open
 
     def test_cron_creates_sla_log(self):
+        # This test runs against an upgraded working database, which may have
+        # additional active SLA configurations. Isolate the scenario so an
+        # operational rule cannot reassign the test lead before the rule under
+        # test creates its escalation activity.
+        self.env["brokerage.crm.sla.rule"].search([]).write({
+            "active": False,
+        })
         activity_type = self.env.ref("brokerage_crm.mail_activity_type_call_customer")
         rule = self.env["brokerage.crm.sla.rule"].create({
             "name": "15 Minutes", "rule_type": "first_contact",

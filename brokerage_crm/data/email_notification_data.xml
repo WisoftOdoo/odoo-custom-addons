@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="email_template_crm_notification" model="mail.template">
+            <field name="name">Brokerage CRM: Operational Notification</field>
+            <field name="model_id" ref="model_brokerage_crm_email_notification"/>
+            <field name="email_from">{{ object.company_id.email_formatted or user.email_formatted }}</field>
+            <field name="email_to">{{ object.recipient_email }}</field>
+            <field name="subject">{{ object.subject }}</field>
+            <field name="description">Independent email alert for CRM assignments and SLA events</field>
+            <field name="auto_delete" eval="False"/>
+            <field name="body_html" type="html">
+<div style="margin:0;padding:0;font-family:Arial,sans-serif;font-size:14px;color:#222;">
+    <p>Dear <t t-out="object.recipient_user_id.name or 'Salesperson'">Salesperson</t>,</p>
+    <h3 style="margin:16px 0 12px 0;color:#714b67;">
+        <t t-out="object.event_label">CRM Notification</t>
+    </h3>
+    <table style="border-collapse:collapse;line-height:1.7;">
+        <tr><td style="padding-right:14px;"><strong>Lead</strong></td><td><t t-out="object.lead_id.display_name or '-'">Lead</t></td></tr>
+        <tr><td style="padding-right:14px;"><strong>Customer</strong></td><td><t t-out="object.lead_id.contact_name or object.lead_id.partner_name or '-'">Customer</t></td></tr>
+        <tr><td style="padding-right:14px;"><strong>Customer phone</strong></td><td><t t-out="object.lead_id.phone or '-'">-</t></td></tr>
+        <tr><td style="padding-right:14px;"><strong>Customer email</strong></td><td><t t-out="object.lead_id.email_from or '-'">-</t></td></tr>
+        <tr><td style="padding-right:14px;"><strong>Source</strong></td><td><t t-out="object.lead_id.source_id.display_name or '-'">-</t></td></tr>
+        <tr><td style="padding-right:14px;"><strong>Sales team</strong></td><td><t t-out="object.lead_id.team_id.display_name or '-'">-</t></td></tr>
+        <tr><td style="padding-right:14px;"><strong>Salesperson</strong></td><td><t t-out="object.lead_id.user_id.display_name or '-'">-</t></td></tr>
+    </table>
+    <p t-if="object.reason" style="margin-top:14px;">
+        <strong>Reason:</strong> <t t-out="object.reason">Notification reason</t>
+    </p>
+    <p t-if="object.elapsed_minutes">
+        Please open the lead and update its progress immediately.
+    </p>
+    <p t-else="">
+        Please contact the customer and update the CRM stage.
+    </p>
+    <p style="margin-top:18px;">
+        <a t-att-href="object.lead_url"
+           style="background:#714b67;color:#fff;padding:9px 14px;text-decoration:none;border-radius:4px;">
+            Open Lead in Odoo
+        </a>
+    </p>
+</div>
+            </field>
+        </record>
+    </data>
+</odoo>
