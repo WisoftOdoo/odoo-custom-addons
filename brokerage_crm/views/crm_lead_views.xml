@@ -92,8 +92,6 @@
 
                 <field name="assignment_type"/>
 
-                <field name="external_lead_id" readonly="1"/>
-
                 <field name="lead_status_id"/>
 
                 <field name="lead_quality_id"/>
@@ -107,6 +105,8 @@
             <xpath expr="//field[@name='source_id']" position="after">
                 <field name="source_category"
                        readonly="1"/>
+                <field name="campaign_id"/>
+                <field name="medium_id"/>
             </xpath>
 
             <!-- =================================================

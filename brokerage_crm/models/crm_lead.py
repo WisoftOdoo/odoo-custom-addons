@@ -1,6 +1,10 @@
+import hashlib
 import logging
+import re
 
-from odoo import api, fields, models, _
+from markupsafe import Markup
+from odoo import api, fields, models, tools, _
+from odoo.addons.phone_validation.tools import phone_validation
 from odoo.exceptions import ValidationError
 
 
@@ -10,16 +14,96 @@ _logger = logging.getLogger(__name__)
 class CrmLead(models.Model):
     _inherit = "crm.lead"
 
-    external_lead_id = fields.Char(
-        string="External Lead ID",
+    brokerage_deduplication_key = fields.Char(
+        string="API Duplicate Key",
+        compute="_compute_brokerage_deduplication_key",
+        store=True,
         copy=False,
         index=True,
-        tracking=True,
+        readonly=True,
     )
 
-    _source_external_lead_unique = models.Constraint(
-        "UNIQUE(source_id, external_lead_id)",
-        "This external lead has already been imported for this source.",
+    @api.model
+    def _brokerage_build_deduplication_key(
+        self,
+        customer_name,
+        email,
+        phone,
+        company=None,
+    ):
+        raw_email = str(email or "").strip()
+        normalized_email = (
+            tools.email_normalize(raw_email)
+            or raw_email.casefold()
+        )
+        company = company or self.env.company
+        country = company.country_id
+        formatted_phone = phone_validation.phone_format(
+            str(phone or "").strip(),
+            country.code if country else False,
+            country.phone_code if country else False,
+            force_format="E164",
+            raise_exception=False,
+        )
+        normalized_phone = re.sub(r"\D", "", formatted_phone or "")
+        if normalized_phone.startswith("00"):
+            normalized_phone = normalized_phone[2:]
+        if not all((normalized_email, normalized_phone)):
+            return False
+        # Email + phone is the stable customer identity. The API still
+        # requires a customer name, but a spelling/name change must not create
+        # a second CRM lead for the same email and phone combination.
+        identity = "\x1f".join((normalized_email, normalized_phone))
+        return hashlib.sha256(identity.encode("utf-8")).hexdigest()
+
+    @api.depends(
+        "email_from",
+        "phone",
+        "company_id",
+        "company_id.country_id",
+    )
+    def _compute_brokerage_deduplication_key(self):
+        for lead in self:
+            lead.brokerage_deduplication_key = (
+                lead._brokerage_build_deduplication_key(
+                    lead.contact_name,
+                    lead.email_from,
+                    lead.phone,
+                    lead.company_id,
+                )
+            )
+
+    repeat_enquiry_count = fields.Integer(
+        string="Repeat Enquiries",
+        readonly=True,
+        copy=False,
+        default=0,
+    )
+    last_repeat_enquiry_datetime = fields.Datetime(
+        string="Last Repeat Enquiry",
+        readonly=True,
+        copy=False,
+    )
+    last_repeat_enquiry_source_id = fields.Many2one(
+        comodel_name="utm.source",
+        string="Last Repeat Enquiry Source",
+        readonly=True,
+        copy=False,
+        ondelete="set null",
+    )
+    last_repeat_enquiry_campaign_id = fields.Many2one(
+        comodel_name="utm.campaign",
+        string="Last Repeat Enquiry Campaign",
+        readonly=True,
+        copy=False,
+        ondelete="set null",
+    )
+    last_repeat_enquiry_medium_id = fields.Many2one(
+        comodel_name="utm.medium",
+        string="Last Repeat Enquiry Medium",
+        readonly=True,
+        copy=False,
+        ondelete="set null",
     )
 
     '''Source and classification fields'''
@@ -715,6 +799,367 @@ class CrmLead(models.Model):
             )
             return self.env["brokerage.crm.email.notification"]
 
+    def _brokerage_repeat_enquiry_recipient(self):
+        self.ensure_one()
+        candidates = self.user_id | self.team_id.user_id
+        return candidates.filtered(
+            lambda user: user.active and not user.share
+        )[:1]
+
+    def _brokerage_previous_owner_is_eligible(self):
+        """Return whether the current owner can receive a reopened enquiry."""
+        self.ensure_one()
+        user = self.user_id
+        team = self.team_id
+        if (
+            not user
+            or not team
+            or not user.active
+            or user.share
+            or not user.available_for_crm_assignment
+        ):
+            return False
+        if team.brokerage_solo_campaign:
+            return user in team.sudo()._brokerage_solo_agents()
+        rule = self.env["brokerage.crm.round.robin"].sudo().search([
+            ("team_id", "=", team.id),
+            ("active", "=", True),
+        ], limit=1)
+        return bool(rule and user in rule._get_eligible_users())
+
+    def _notify_brokerage_repeat_enquiry(self, user, event_number, action):
+        """Notify one responsible user without changing the assignment."""
+        self.ensure_one()
+        if not user or not user.active or user.share:
+            return False
+        label = _("Repeat CRM Enquiry")
+        action_text = {
+            "active_duplicate": _(
+                ""            ),
+            "manual_review": _(
+                "Automatic reopening was blocked. Please review the "
+                "existing lead manually."
+            ),
+            "reopened_manual": _(
+                "The lead was reopened for manual assignment."
+            ),
+        }.get(action, _("Please review the repeat enquiry."))
+        self.message_notify(
+            partner_ids=user.partner_id.ids,
+            author_id=self.env.user.partner_id.id,
+            body=Markup(
+                "<p><b>%(heading)s</b></p>"
+                "<p>%(lead_label)s: %(lead)s<br/>"
+                "%(customer_label)s: %(customer)s<br/>"
+                "%(instruction)s</p>"
+            ) % {
+                "heading": label,
+                "lead_label": _("Lead"),
+                "lead": self.display_name,
+                "customer_label": _("Customer"),
+                "customer": self.contact_name or self.partner_name or "-",
+                "instruction": action_text,
+            },
+            subject="%s: %s" % (label, self.display_name),
+            model_description=_("CRM Lead"),
+            force_record_name=self.display_name,
+            notify_skip_followers=True,
+            skip_existing=True,
+        )
+        event_key = "repeat-enquiry:%s:%s:%s" % (
+            self.id,
+            event_number,
+            user.id,
+        )
+        try:
+            self.env["brokerage.whatsapp.notification"].sudo().queue_repeat_enquiry(
+                self.sudo(), user.sudo(), event_key, action_text
+            )
+        except Exception:
+            _logger.exception(
+                "Could not queue repeat-enquiry WhatsApp for lead %s",
+                self.id,
+            )
+        try:
+            self.env["brokerage.crm.email.notification"].sudo().queue_repeat_enquiry(
+                self.sudo(), user.sudo(), event_key, action_text
+            )
+        except Exception:
+            _logger.exception(
+                "Could not queue repeat-enquiry email for lead %s",
+                self.id,
+            )
+        return True
+
+    def _brokerage_record_repeat_enquiry(
+        self,
+        source,
+        campaign,
+        medium,
+        incoming_name,
+        incoming_email,
+        incoming_phone,
+        requested_assignment_type,
+        action,
+        previous_stage,
+        previous_user,
+        previous_team,
+    ):
+        self.ensure_one()
+        now = fields.Datetime.now()
+        event_number = self.repeat_enquiry_count + 1
+        self.with_context(
+            skip_assignment_history=True,
+            skip_round_robin=True,
+            brokerage_workflow_action=True,
+        ).write({
+            "repeat_enquiry_count": event_number,
+            "last_repeat_enquiry_datetime": now,
+            "last_repeat_enquiry_source_id": source.id or False,
+            "last_repeat_enquiry_campaign_id": campaign.id or False,
+            "last_repeat_enquiry_medium_id": medium.id or False,
+        })
+        action_labels = {
+            "active_duplicate": _("Kept with the existing owner and stage"),
+            "reopened_previous_user": _("Reopened for the previous eligible salesperson"),
+            "reopened_round_robin": _("Reopened through the normal Round Robin"),
+            "reopened_manual": _("Reopened for manual assignment"),
+            "manual_review": _("Held for manual review"),
+        }
+        self.message_post(
+            body=Markup(
+                "<p><b>%(title)s</b></p>"
+                "<p>%(received)s: %(date)s<br/>"
+                "%(incoming_customer)s: %(customer)s<br/>"
+                "%(incoming_email_label)s: %(email)s<br/>"
+                "%(incoming_phone_label)s: %(phone)s<br/>"
+                "%(source_label)s: %(source)s<br/>"
+                "%(campaign_label)s: %(campaign)s<br/>"
+                "%(medium_label)s: %(medium)s<br/>"
+                "%(requested_type)s: %(assignment_type)s<br/>"
+                "%(previous_owner)s: %(user)s / %(team)s / %(stage)s<br/>"
+                "%(result_label)s: %(result)s</p>"
+            ) % {
+                "title": _("Repeat enquiry received"),
+                "received": _("Received"),
+                "date": fields.Datetime.to_string(now),
+                "incoming_customer": _("Incoming customer name"),
+                "customer": incoming_name or "-",
+                "incoming_email_label": _("Incoming email"),
+                "email": incoming_email or "-",
+                "incoming_phone_label": _("Incoming phone"),
+                "phone": incoming_phone or "-",
+                "source_label": _("Incoming source"),
+                "source": source.display_name or "-",
+                "campaign_label": _("Incoming campaign"),
+                "campaign": campaign.display_name or "-",
+                "medium_label": _("Incoming medium"),
+                "medium": medium.display_name or "-",
+                "requested_type": _("Requested assignment type"),
+                "assignment_type": requested_assignment_type,
+                "previous_owner": _("Previous owner context"),
+                "user": previous_user.display_name or "-",
+                "team": previous_team.display_name or "-",
+                "stage": previous_stage.display_name or "-",
+                "result_label": _("Result"),
+                "result": action_labels[action],
+            },
+            subtype_xmlid="mail.mt_note",
+        )
+        return event_number
+
+    def _brokerage_reopen_for_previous_owner(
+        self, source, campaign, medium, requested_assignment_type
+    ):
+        self.ensure_one()
+        previous_user = self.user_id
+        previous_team = self.team_id
+        before_snapshot = self._brokerage_assignment_snapshot()
+        assigned_stage = self._find_brokerage_stage(
+            "assigned", team=previous_team
+        )
+        if not assigned_stage:
+            raise ValidationError(_(
+                "Configure an Assigned CRM stage for Sales Team %s."
+            ) % previous_team.display_name)
+        now = fields.Datetime.now()
+        history_type = (
+            "reassignment"
+            if requested_assignment_type == "round_robin"
+            else "manual"
+        )
+        values = {
+            "active": True,
+            "lost_reason_id": False,
+            "source_id": source.id,
+            "campaign_id": campaign.id or False,
+            "medium_id": medium.id or False,
+            "stage_id": assigned_stage.id,
+            "user_id": previous_user.id,
+            "team_id": previous_team.id,
+            "not_interested_reassignment_done": False,
+        }
+        values.update(
+            self._prepare_brokerage_assignment_cycle_values(history_type, now)
+        )
+        if requested_assignment_type != "round_robin":
+            values["sla_cycle_active"] = False
+        self._clear_open_brokerage_sla_activities()
+        self.with_context(
+            skip_assignment_history=True,
+            skip_round_robin=True,
+            brokerage_workflow_action=True,
+        ).write(values)
+        reason = _("Repeat enquiry reopened for the previous salesperson")
+        self.env["brokerage.crm.assignment.history"].sudo().create({
+            "lead_id": self.id,
+            "source_id": source.id,
+            "previous_user_id": previous_user.id,
+            "new_user_id": previous_user.id,
+            "previous_team_id": previous_team.id,
+            "new_team_id": previous_team.id,
+            "assignment_type": history_type,
+            "assigned_datetime": now,
+            "assigned_by_id": self.env.user.id,
+            "reason": reason,
+            "previous_stage_id": before_snapshot.get("stage_id") or False,
+            "new_stage_id": self.stage_id.id,
+            "before_snapshot": before_snapshot,
+            "after_snapshot": self._brokerage_assignment_snapshot(),
+        })
+        self._queue_brokerage_whatsapp_assignment(previous_user, reason)
+        return "reopened_previous_user"
+
+    def _brokerage_handle_duplicate_enquiry(
+        self,
+        source,
+        campaign,
+        medium,
+        incoming_name,
+        incoming_email,
+        incoming_phone,
+        requested_assignment_type,
+    ):
+        """Apply the approved active/closed duplicate-enquiry workflows."""
+        self.ensure_one()
+        lead = self.sudo()
+        previous_stage = lead.stage_id
+        previous_user = lead.user_id
+        previous_team = lead.team_id
+        stage_code = lead._stage_code(previous_stage)
+        status_code = lead.lead_status_id.code
+        is_not_interested = (
+            stage_code == "not_interested"
+            or status_code == "not_interested"
+        )
+        is_lost = not lead.active or lead.won_status == "lost"
+        is_invalid = (
+            (lead.lead_status_id.is_invalid and not is_not_interested)
+            or lead.phone_sanitized_blacklisted
+            or lead.partner_is_blacklisted
+        )
+
+        if is_invalid or lead.won_status == "won":
+            action = "manual_review"
+        elif is_not_interested or is_lost:
+            if lead._brokerage_previous_owner_is_eligible():
+                action = lead._brokerage_reopen_for_previous_owner(
+                    source,
+                    campaign,
+                    medium,
+                    requested_assignment_type,
+                )
+            elif requested_assignment_type == "round_robin":
+                lead._clear_open_brokerage_sla_activities()
+                lead.with_context(
+                    skip_assignment_history=True,
+                    skip_round_robin=True,
+                    brokerage_workflow_action=True,
+                ).write({
+                    "active": True,
+                    "lost_reason_id": False,
+                    "source_id": source.id,
+                    "campaign_id": campaign.id or False,
+                    "medium_id": medium.id or False,
+                    "not_interested_reassignment_done": False,
+                })
+                self.env[
+                    "brokerage.crm.round.robin"
+                ].sudo().assign_lead_by_normal_sequence(
+                    lead,
+                    reason=_(
+                        "Repeat enquiry reassigned because the previous "
+                        "salesperson is unavailable"
+                    ),
+                )
+                action = "reopened_round_robin"
+            else:
+                new_stage = self.env["crm.stage"].sudo().search([
+                    ("brokerage_code", "=", "new"),
+                ], order="sequence, id", limit=1)
+                if not new_stage:
+                    raise ValidationError(_(
+                        "Configure a New Lead CRM stage before reopening "
+                        "manual enquiries."
+                    ))
+                lead._clear_open_brokerage_sla_activities()
+                lead.with_context(
+                    skip_assignment_history=True,
+                    skip_round_robin=True,
+                    brokerage_workflow_action=True,
+                ).write({
+                    "active": True,
+                    "lost_reason_id": False,
+                    "source_id": source.id,
+                    "campaign_id": campaign.id or False,
+                    "medium_id": medium.id or False,
+                    "assignment_type": "manual",
+                    "stage_id": new_stage.id,
+                    "user_id": False,
+                    "team_id": False,
+                    "assigned_datetime": False,
+                    "sla_cycle_active": False,
+                    "first_contact_datetime": False,
+                    "last_meaningful_update": fields.Datetime.now(),
+                    "not_interested_reassignment_done": False,
+                })
+                action = "reopened_manual"
+        else:
+            action = "active_duplicate"
+
+        event_number = lead._brokerage_record_repeat_enquiry(
+            source,
+            campaign,
+            medium,
+            incoming_name,
+            incoming_email,
+            incoming_phone,
+            requested_assignment_type,
+            action,
+            previous_stage,
+            previous_user,
+            previous_team,
+        )
+        # Reopened assigned leads already receive exactly one assignment alert
+        # from their assignment-history event. Other outcomes need a targeted
+        # repeat-enquiry alert instead.
+        if action in (
+            "active_duplicate",
+            "manual_review",
+            "reopened_manual",
+        ):
+            recipient = lead._brokerage_repeat_enquiry_recipient()
+            if not recipient and previous_team:
+                recipient = previous_team.user_id.filtered(
+                    lambda user: user.active and not user.share
+                )[:1]
+            lead._notify_brokerage_repeat_enquiry(
+                recipient,
+                event_number,
+                action,
+            )
+        return action
+
     def _apply_round_robin_assignment(self):
         for lead in self:
             source_team = lead.source_id.default_team_id
@@ -1205,13 +1650,11 @@ class CrmLead(models.Model):
             if event_type == "reassignment":
                 reason = (
                     _(
-                        "Automatic reassignment because the "
-                        "assigned salesperson is the Team Leader"
+                        "Automatic reassignment after no contact attempt or qualifying update, "
                     )
                     if assigned_to_team_leader
                     else _(
-                        "Automatic reassignment after Team Leader "
-                        "escalation"
+                        "Automatic reassignment after no contact attempt or qualifying update"
                     )
                 )
                 if self.team_id.brokerage_solo_campaign:

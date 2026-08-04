@@ -38,6 +38,7 @@ class BrokerageCrmEmailNotification(models.Model):
         selection=[
             ("assignment", "New Lead Assignment"),
             ("reassignment", "Lead Reassignment"),
+            ("repeat_enquiry", "Repeat Enquiry"),
             ("reminder_1", "SLA Reminder 1"),
             ("reminder_2", "SLA Reminder 2"),
             ("reminder_3", "SLA Reminder 3"),
@@ -147,6 +148,21 @@ class BrokerageCrmEmailNotification(models.Model):
                 history.new_user_id.id,
             ),
             assignment_history=history,
+        )
+
+    @api.model
+    def queue_repeat_enquiry(self, lead, user, event_key, action_text):
+        lead.ensure_one()
+        user.ensure_one()
+        label = _("Repeat CRM Enquiry")
+        return self._queue_notification(
+            lead=lead,
+            user=user,
+            notification_type="repeat_enquiry",
+            event_label=label,
+            subject="%s: %s" % (label, lead.display_name),
+            reason=str(action_text),
+            deduplication_key=event_key,
         )
 
     @api.model
