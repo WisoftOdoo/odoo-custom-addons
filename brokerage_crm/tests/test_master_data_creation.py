@@ -57,6 +57,34 @@ class TestMasterDataCreation(TransactionCase):
             .with_user(agent)
             .create({"name": "Agent Created Meeting Outcome"})
         )
+        requirement_options = self.env[
+            "brokerage.crm.customer.requirement.option"
+        ].with_user(agent).create([
+            {
+                "name": "Agent Requirement Type",
+                "option_type": "requirement_type",
+            },
+            {
+                "name": "Agent Property Category",
+                "option_type": "property_category",
+            },
+            {
+                "name": "Agent Bedroom Count",
+                "option_type": "bedroom_count",
+            },
+            {
+                "name": "Agent Purchase Timeline",
+                "option_type": "purchase_timeline",
+            },
+            {
+                "name": "Agent Buyer Type",
+                "option_type": "buyer_type",
+            },
+            {
+                "name": "Agent Purchase Mode",
+                "option_type": "purchase_mode",
+            },
+        ])
 
         self.assertTrue(developer.exists())
         self.assertTrue(project.exists())
@@ -66,6 +94,8 @@ class TestMasterDataCreation(TransactionCase):
         self.assertTrue(contact_method.exists())
         self.assertTrue(meeting_type.exists())
         self.assertTrue(meeting_outcome.exists())
+        self.assertEqual(len(requirement_options), 6)
+        self.assertTrue(all(requirement_options.mapped("code")))
         self.assertEqual(
             contact_method.code,
             "agent_created_contact_method",

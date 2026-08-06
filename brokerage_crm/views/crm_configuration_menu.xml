@@ -53,6 +53,13 @@
               sequence="50"
               groups="brokerage_crm.group_brokerage_sales_manager"/>
 
+    <menuitem id="menu_brokerage_customer_requirement_options"
+              name="Customer Requirement Options"
+              parent="menu_brokerage_master_data"
+              action="action_brokerage_customer_requirement_option"
+              sequence="55"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
     <menuitem id="menu_brokerage_contact_methods"
               name="Contact Methods"
               parent="menu_brokerage_master_data"

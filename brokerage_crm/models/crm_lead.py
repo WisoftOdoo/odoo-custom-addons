@@ -237,6 +237,7 @@ class CrmLead(models.Model):
             ("end_use", "End Use"),
             ("both", "Investment and End Use"),
         ],
+        string="Legacy Requirement Type",
         tracking=True,
     )
 
@@ -269,6 +270,7 @@ class CrmLead(models.Model):
             ("commercial", "Commercial"),
             ("other", "Other"),
         ],
+        string="Legacy Property Category",
         tracking=True,
     )
 
@@ -283,6 +285,7 @@ class CrmLead(models.Model):
             ("4", "4 Bedrooms"),
             ("5_plus", "5+ Bedrooms"),
         ],
+        string="Legacy Bedroom Count",
         tracking=True,
     )
 
@@ -295,6 +298,7 @@ class CrmLead(models.Model):
             ("later", "More Than 6 Months"),
             ("unknown", "Not Confirmed"),
         ],
+        string="Legacy Purchase Timeline",
         tracking=True,
     )
 
@@ -305,6 +309,7 @@ class CrmLead(models.Model):
             ("investor", "Investor"),
             ("end_user", "End User"),
         ],
+        string="Legacy Buyer Type",
         tracking=True,
     )
 
@@ -314,6 +319,7 @@ class CrmLead(models.Model):
             ("finance", "Finance"),
             ("undecided", "Not Confirmed"),
         ],
+        string="Legacy Purchase Mode",
         tracking=True,
     )
 
@@ -594,6 +600,7 @@ class CrmLead(models.Model):
                     force_global_round_robin=not has_explicit_team
                 )._apply_round_robin_assignment()
             elif is_direct and lead.user_id:
+                lead._move_new_lead_to_assigned_if_owned()
                 lead._record_direct_assignment(False, lead.user_id)
         return leads
 
@@ -686,6 +693,7 @@ class CrmLead(models.Model):
                         "last_meaningful_update": now if lead.user_id else False,
                     })
                     if lead.user_id:
+                        lead._move_new_lead_to_assigned_if_owned()
                         lead._record_direct_assignment(
                             old_user,
                             lead.user_id,
@@ -693,6 +701,40 @@ class CrmLead(models.Model):
                             before_snapshot=old_snapshot,
                         )
         return result
+
+    def _move_new_lead_to_assigned_if_owned(self):
+        """Move only salesperson-owned New Leads into Assigned.
+
+        This intentionally does not start an SLA cycle.  SLA automation is
+        still limited to Round Robin and the supported reassignment types.
+        Leads that have already progressed beyond New Lead are never moved.
+        """
+        assigned_status = self.env[
+            "brokerage.crm.lead.status"
+        ].sudo().search([("code", "=", "assigned")], limit=1)
+        for lead in self:
+            if not lead.user_id or self._stage_code(lead.stage_id) != "new":
+                continue
+            assigned_stage = lead._find_brokerage_stage(
+                "assigned", team=lead.team_id
+            )
+            if not assigned_stage:
+                _logger.warning(
+                    "Lead %s remains in New Lead because no compatible "
+                    "Assigned stage is configured for team %s.",
+                    lead.id,
+                    lead.team_id.display_name or "Unassigned",
+                )
+                continue
+            super(CrmLead, lead.with_context(
+                skip_assignment_history=True,
+                skip_round_robin=True,
+                brokerage_workflow_action=True,
+            )).write({
+                "stage_id": assigned_stage.id,
+                "lead_status_id": assigned_status.id or False,
+                "sla_cycle_active": False,
+            })
 
     def _record_direct_assignment(
         self,
