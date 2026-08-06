@@ -83,6 +83,41 @@
                         </div>
                     </setting>
                 </block>
+                <block title="Brokerage Lead Quality Aging"
+                       name="brokerage_lead_quality_aging_settings"
+                       groups="base.group_system,brokerage_crm.group_brokerage_sales_manager">
+                    <setting id="brokerage_lead_quality_aging_enabled"
+                             string="Automatic Lead Quality by Creation Age"
+                             help="Automatically classify active open leads as Hot, Warm or Cold from the lead creation date.">
+                        <field name="brokerage_lead_quality_aging_enabled"/>
+                        <div class="content-group mt16"
+                             invisible="not brokerage_lead_quality_aging_enabled">
+                            <div class="row mt8">
+                                <label for="brokerage_lead_quality_hot_days"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_lead_quality_hot_days"
+                                       class="oe_inline"/>
+                                <span class="ms-2">days from creation</span>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_lead_quality_warm_days"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_lead_quality_warm_days"
+                                       class="oe_inline"/>
+                                <span class="ms-2">days from creation</span>
+                            </div>
+                            <div class="text-muted mt8">
+                                With the default values, leads are Hot from day
+                                0 through day 30, Warm from day 31 through day
+                                90, and Cold after day 90. New leads are
+                                classified immediately; active open leads are
+                                reviewed daily. Closed, Lost, Invalid, final
+                                Not Interested and archived leads are not
+                                changed.
+                            </div>
+                        </div>
+                    </setting>
+                </block>
                 <block title="Brokerage WhatsApp Notifications"
                        name="brokerage_ultramsg_settings"
                        groups="base.group_system">

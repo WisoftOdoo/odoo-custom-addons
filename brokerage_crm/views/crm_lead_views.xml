@@ -178,17 +178,23 @@
 
                     <group>
                         <group string="Requirement">
-                            <field name="requirement_type"/>
+                            <field name="requirement_type_id"
+                                   context="{'default_option_type': 'requirement_type'}"/>
                             <field name="preferred_location"/>
-                            <field name="property_category"/>
+                            <field name="property_category_id"
+                                   context="{'default_option_type': 'property_category'}"/>
                             <field name="unit_preference"/>
-                            <field name="bedroom_count"/>
+                            <field name="bedroom_count_id"
+                                   context="{'default_option_type': 'bedroom_count'}"/>
                         </group>
 
                         <group string="Buyer Information">
-                            <field name="purchase_timeline"/>
-                            <field name="buyer_type"/>
-                            <field name="purchase_mode"/>
+                            <field name="purchase_timeline_id"
+                                   context="{'default_option_type': 'purchase_timeline'}"/>
+                            <field name="buyer_type_id"
+                                   context="{'default_option_type': 'buyer_type'}"/>
+                            <field name="purchase_mode_id"
+                                   context="{'default_option_type': 'purchase_mode'}"/>
                         </group>
                     </group>
 

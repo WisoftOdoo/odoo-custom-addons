@@ -42,6 +42,9 @@ class TestNotInterestedReassignment(TransactionCase):
         cls.not_interested_stage = cls.env.ref(
             "brokerage_crm.crm_stage_not_interested"
         )
+        cls.not_interested_stage.write({
+            "team_ids": [(6, 0, cls.teams.ids)],
+        })
         cls.configurations = cls.env[
             "brokerage.crm.round.robin"
         ].create([

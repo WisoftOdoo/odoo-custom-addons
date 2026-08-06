@@ -11,3 +11,5 @@ from . import test_telephony
 from . import test_assignment_recovery
 from . import test_hierarchy
 from . import test_solo_campaign
+from . import test_lead_quality_aging
+from . import test_customer_requirement_options

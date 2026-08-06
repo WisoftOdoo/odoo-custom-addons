@@ -1,6 +1,6 @@
 {
     "name": "Wisoft Brokerage CRM",
-    "version": "19.0.1.20.0",
+    "version": "19.0.1.22.0",
     "category": "Sales/CRM",
     "summary": "Off-plan brokerage lead management workflow",
     "author": "Tranquil",
@@ -28,6 +28,7 @@
         "data/crm_meeting_type_data.xml",
         "data/crm_meeting_outcome_data.xml",
         "data/crm_booking_master_data.xml",
+        "data/customer_requirement_option_data.xml",
         "data/crm_activity_data.xml",
         "data/email_notification_data.xml",
         "data/crm_sla_rule_data.xml",
@@ -40,6 +41,7 @@
         "views/utm_source_views.xml",
         "views/crm_lead_status_views.xml",
         "views/crm_lead_quality_views.xml",
+        "views/crm_customer_requirement_option_views.xml",
         "views/crm_interaction_master_views.xml",
         "views/crm_booking_master_views.xml",
         "views/crm_team_hierarchy_views.xml",
@@ -62,6 +64,7 @@
         "views/crm_configuration_menu.xml",
 
         "data/crm_sla_cron.xml",
+        "data/lead_quality_aging_cron.xml",
         "data/whatsapp_cron.xml",
         "data/email_notification_cron.xml",
     ],
