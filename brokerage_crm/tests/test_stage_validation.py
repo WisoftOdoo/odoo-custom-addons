@@ -7,6 +7,72 @@ from odoo.tests.common import TransactionCase
 
 
 class TestLeadValidation(TransactionCase):
+    def test_salesperson_assignment_moves_only_new_leads_to_assigned(self):
+        salesperson = self.env["res.users"].create({
+            "name": "Initial Assignment Agent",
+            "login": "initial.assignment.agent@test.invalid",
+        })
+        team = self.env["crm.team"].create({
+            "name": "Initial Assignment Team",
+            "member_ids": [(6, 0, [salesperson.id])],
+        })
+        new_stage, assigned_stage, contacted_stage = self.env[
+            "crm.stage"
+        ].create([
+            {
+                "name": "Initial Assignment New",
+                "sequence": -100,
+                "brokerage_code": "new",
+                "team_ids": [(6, 0, [team.id])],
+            },
+            {
+                "name": "Initial Assignment Assigned",
+                "sequence": -90,
+                "brokerage_code": "assigned",
+                "team_ids": [(6, 0, [team.id])],
+            },
+            {
+                "name": "Initial Assignment Contacted",
+                "sequence": -80,
+                "brokerage_code": "contacted",
+                "team_ids": [(6, 0, [team.id])],
+            },
+        ])
+
+        owned_at_creation = self.env["crm.lead"].create({
+            "name": "Owned At Creation",
+            "type": "opportunity",
+            "assignment_type": "manual",
+            "team_id": team.id,
+            "user_id": salesperson.id,
+            "stage_id": new_stage.id,
+        })
+        self.assertEqual(owned_at_creation.stage_id, assigned_stage)
+        self.assertFalse(owned_at_creation.sla_cycle_active)
+
+        assigned_later = self.env["crm.lead"].create({
+            "name": "Assigned Later",
+            "type": "opportunity",
+            "assignment_type": "manual",
+            "team_id": team.id,
+            "user_id": False,
+            "stage_id": new_stage.id,
+        })
+        assigned_later.user_id = salesperson
+        self.assertEqual(assigned_later.stage_id, assigned_stage)
+        self.assertFalse(assigned_later.sla_cycle_active)
+
+        progressed_lead = self.env["crm.lead"].create({
+            "name": "Already Progressed",
+            "type": "opportunity",
+            "assignment_type": "manual",
+            "team_id": team.id,
+            "user_id": False,
+            "stage_id": contacted_stage.id,
+        })
+        progressed_lead.user_id = salesperson
+        self.assertEqual(progressed_lead.stage_id, contacted_stage)
+
     def test_next_action_follows_brokerage_stage_hierarchy(self):
         stages = self.env["crm.stage"].create([
             {

@@ -4,6 +4,8 @@ from . import crm_team
 from . import crm_lead
 from . import crm_lead_status
 from . import crm_lead_quality
+from . import crm_customer_requirement_option
+from . import crm_lead_quality_aging
 from . import brokerage_developer
 from . import brokerage_project
 from . import crm_contact_method

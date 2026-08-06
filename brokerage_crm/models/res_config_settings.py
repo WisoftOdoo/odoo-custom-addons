@@ -1,6 +1,6 @@
 import re
 
-from odoo import api, fields, models, _
+from odoo import api, fields, models, tools, _
 from odoo.exceptions import ValidationError
 
 
@@ -30,6 +30,22 @@ class ResConfigSettings(models.TransientModel):
     )
     brokerage_sla_reassignment_minutes = fields.Integer(
         string="Cross-Team Reassignment After",
+    )
+
+    brokerage_lead_quality_aging_enabled = fields.Boolean(
+        string="Enable Automatic Lead Quality Aging",
+        config_parameter="brokerage_crm.lead_quality_aging_enabled",
+        default=True,
+    )
+    brokerage_lead_quality_hot_days = fields.Integer(
+        string="Hot Up To",
+        config_parameter="brokerage_crm.lead_quality_hot_days",
+        default=30,
+    )
+    brokerage_lead_quality_warm_days = fields.Integer(
+        string="Warm Up To",
+        config_parameter="brokerage_crm.lead_quality_warm_days",
+        default=90,
     )
 
     brokerage_ultramsg_enabled = fields.Boolean(
@@ -99,6 +115,28 @@ class ResConfigSettings(models.TransientModel):
     @api.model
     def get_values(self):
         values = super().get_values()
+        parameters = self.env["ir.config_parameter"].sudo()
+        values.update({
+            "brokerage_lead_quality_aging_enabled": tools.str2bool(
+                parameters.get_param(
+                    "brokerage_crm.lead_quality_aging_enabled",
+                    "True",
+                ),
+                default=True,
+            ),
+            "brokerage_lead_quality_hot_days": int(
+                parameters.get_param(
+                    "brokerage_crm.lead_quality_hot_days",
+                    "30",
+                )
+            ),
+            "brokerage_lead_quality_warm_days": int(
+                parameters.get_param(
+                    "brokerage_crm.lead_quality_warm_days",
+                    "90",
+                )
+            ),
+        })
         rule = self._get_brokerage_default_sla_rule()
         if rule:
             values.update({
@@ -162,9 +200,25 @@ class ResConfigSettings(models.TransientModel):
             previous_label = label
             previous_minutes = minutes
 
+    def _validate_brokerage_lead_quality_aging(self):
+        self.ensure_one()
+        if not self.brokerage_lead_quality_aging_enabled:
+            return
+        hot_days = self.brokerage_lead_quality_hot_days
+        warm_days = self.brokerage_lead_quality_warm_days
+        if hot_days < 0 or warm_days < 0:
+            raise ValidationError(_(
+                "Lead quality aging thresholds cannot be negative."
+            ))
+        if warm_days <= hot_days:
+            raise ValidationError(_(
+                "Warm Up To must be greater than Hot Up To."
+            ))
+
     def set_values(self):
         for settings in self:
             settings._validate_brokerage_sla_timings()
+            settings._validate_brokerage_lead_quality_aging()
             if not settings.brokerage_ultramsg_enabled:
                 continue
             instance_id = (

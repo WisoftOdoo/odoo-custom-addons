@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="requirement_type_investment" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Investment</field>
+            <field name="code">investment</field>
+            <field name="option_type">requirement_type</field>
+            <field name="sequence">10</field>
+        </record>
+        <record id="requirement_type_end_use" model="brokerage.crm.customer.requirement.option">
+            <field name="name">End Use</field>
+            <field name="code">end_use</field>
+            <field name="option_type">requirement_type</field>
+            <field name="sequence">20</field>
+        </record>
+        <record id="requirement_type_both" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Investment and End Use</field>
+            <field name="code">both</field>
+            <field name="option_type">requirement_type</field>
+            <field name="sequence">30</field>
+        </record>
+
+        <record id="property_category_apartment" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Apartment</field>
+            <field name="code">apartment</field>
+            <field name="option_type">property_category</field>
+            <field name="sequence">10</field>
+        </record>
+        <record id="property_category_villa" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Villa</field>
+            <field name="code">villa</field>
+            <field name="option_type">property_category</field>
+            <field name="sequence">20</field>
+        </record>
+        <record id="property_category_townhouse" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Townhouse</field>
+            <field name="code">townhouse</field>
+            <field name="option_type">property_category</field>
+            <field name="sequence">30</field>
+        </record>
+        <record id="property_category_penthouse" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Penthouse</field>
+            <field name="code">penthouse</field>
+            <field name="option_type">property_category</field>
+            <field name="sequence">40</field>
+        </record>
+        <record id="property_category_plot" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Plot</field>
+            <field name="code">plot</field>
+            <field name="option_type">property_category</field>
+            <field name="sequence">50</field>
+        </record>
+        <record id="property_category_commercial" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Commercial</field>
+            <field name="code">commercial</field>
+            <field name="option_type">property_category</field>
+            <field name="sequence">60</field>
+        </record>
+        <record id="property_category_other_legacy" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Other (Legacy)</field>
+            <field name="code">other</field>
+            <field name="option_type">property_category</field>
+            <field name="sequence">90</field>
+            <field name="active">False</field>
+        </record>
+
+        <record id="bedroom_count_studio" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Studio</field>
+            <field name="code">studio</field>
+            <field name="option_type">bedroom_count</field>
+            <field name="sequence">10</field>
+        </record>
+        <record id="bedroom_count_one" model="brokerage.crm.customer.requirement.option">
+            <field name="name">1 Bedroom</field>
+            <field name="code">1</field>
+            <field name="option_type">bedroom_count</field>
+            <field name="sequence">20</field>
+        </record>
+        <record id="bedroom_count_two" model="brokerage.crm.customer.requirement.option">
+            <field name="name">2 Bedrooms</field>
+            <field name="code">2</field>
+            <field name="option_type">bedroom_count</field>
+            <field name="sequence">30</field>
+        </record>
+        <record id="bedroom_count_three" model="brokerage.crm.customer.requirement.option">
+            <field name="name">3 Bedrooms</field>
+            <field name="code">3</field>
+            <field name="option_type">bedroom_count</field>
+            <field name="sequence">40</field>
+        </record>
+        <record id="bedroom_count_four" model="brokerage.crm.customer.requirement.option">
+            <field name="name">4 Bedrooms</field>
+            <field name="code">4</field>
+            <field name="option_type">bedroom_count</field>
+            <field name="sequence">50</field>
+        </record>
+        <record id="bedroom_count_five_plus" model="brokerage.crm.customer.requirement.option">
+            <field name="name">5+ Bedrooms</field>
+            <field name="code">5_plus</field>
+            <field name="option_type">bedroom_count</field>
+            <field name="sequence">60</field>
+        </record>
+
+        <record id="purchase_timeline_immediate" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Immediate</field>
+            <field name="code">immediate</field>
+            <field name="option_type">purchase_timeline</field>
+            <field name="sequence">10</field>
+        </record>
+        <record id="purchase_timeline_one_month" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Within 1 Month</field>
+            <field name="code">one_month</field>
+            <field name="option_type">purchase_timeline</field>
+            <field name="sequence">20</field>
+        </record>
+        <record id="purchase_timeline_three_months" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Within 3 Months</field>
+            <field name="code">three_months</field>
+            <field name="option_type">purchase_timeline</field>
+            <field name="sequence">30</field>
+        </record>
+        <record id="purchase_timeline_six_months" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Within 6 Months</field>
+            <field name="code">six_months</field>
+            <field name="option_type">purchase_timeline</field>
+            <field name="sequence">40</field>
+        </record>
+        <record id="purchase_timeline_later" model="brokerage.crm.customer.requirement.option">
+            <field name="name">More Than 6 Months</field>
+            <field name="code">later</field>
+            <field name="option_type">purchase_timeline</field>
+            <field name="sequence">50</field>
+        </record>
+        <record id="purchase_timeline_unknown" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Not Confirmed</field>
+            <field name="code">unknown</field>
+            <field name="option_type">purchase_timeline</field>
+            <field name="sequence">60</field>
+        </record>
+
+        <record id="buyer_type_resident" model="brokerage.crm.customer.requirement.option">
+            <field name="name">UAE Resident</field>
+            <field name="code">resident</field>
+            <field name="option_type">buyer_type</field>
+            <field name="sequence">10</field>
+        </record>
+        <record id="buyer_type_non_resident" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Non-resident</field>
+            <field name="code">non_resident</field>
+            <field name="option_type">buyer_type</field>
+            <field name="sequence">20</field>
+        </record>
+        <record id="buyer_type_investor" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Investor</field>
+            <field name="code">investor</field>
+            <field name="option_type">buyer_type</field>
+            <field name="sequence">30</field>
+        </record>
+        <record id="buyer_type_end_user" model="brokerage.crm.customer.requirement.option">
+            <field name="name">End User</field>
+            <field name="code">end_user</field>
+            <field name="option_type">buyer_type</field>
+            <field name="sequence">40</field>
+        </record>
+
+        <record id="purchase_mode_cash" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Cash</field>
+            <field name="code">cash</field>
+            <field name="option_type">purchase_mode</field>
+            <field name="sequence">10</field>
+        </record>
+        <record id="purchase_mode_finance" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Finance</field>
+            <field name="code">finance</field>
+            <field name="option_type">purchase_mode</field>
+            <field name="sequence">20</field>
+        </record>
+        <record id="purchase_mode_undecided" model="brokerage.crm.customer.requirement.option">
+            <field name="name">Not Confirmed</field>
+            <field name="code">undecided</field>
+            <field name="option_type">purchase_mode</field>
+            <field name="sequence">30</field>
+        </record>
+    </data>
+
+    <function model="crm.lead"
+              name="_brokerage_migrate_customer_requirement_options"/>
+</odoo>
