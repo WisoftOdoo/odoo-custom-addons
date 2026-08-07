@@ -121,6 +121,18 @@ class CrmLead(models.Model):
         index=True,
     )
 
+    broker_company_id = fields.Many2one(
+        comodel_name="res.partner",
+        string="Broker Company",
+        domain="[('is_company', '=', True)]",
+        ondelete="set null",
+        tracking=True,
+        help=(
+            "Select the external broker company connected to this lead, if "
+            "applicable. Leave this field empty when no broker is involved."
+        ),
+    )
+
     source_category = fields.Selection(
         related="source_id.brokerage_category",
         string="Source Category",

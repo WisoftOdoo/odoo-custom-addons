@@ -1,6 +1,6 @@
 {
     "name": "Wisoft Brokerage CRM",
-    "version": "19.0.1.22.0",
+    "version": "19.0.1.26.0",
     "category": "Sales/CRM",
     "summary": "Off-plan brokerage lead management workflow",
     "author": "Tranquil",
@@ -52,6 +52,7 @@
         "views/whatsapp_notification_views.xml",
         "views/email_notification_views.xml",
         "views/res_users_views.xml",
+        "views/mail_activity_views.xml",
         "views/crm_meeting_views.xml",
 
         # Wizard actions must load before crm_lead_views.xml.
@@ -67,6 +68,7 @@
         "data/lead_quality_aging_cron.xml",
         "data/whatsapp_cron.xml",
         "data/email_notification_cron.xml",
+        "data/mail_activity_reminder_cron.xml",
     ],
     "application": False,
     "installable": True,

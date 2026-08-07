@@ -57,8 +57,13 @@ class CrmContactAttemptWizard(models.TransientModel):
         comodel_name="mail.activity.type",
     )
 
-    next_activity_date = fields.Date()
-
+    next_activity_date = fields.Datetime(
+        string="Next Activity Date & Time",
+        help=(
+            "Select the exact date and time for the customer follow-up and "
+            "its Odoo reminder."
+        ),
+    )
     @api.model_create_multi
     def create(self, vals_list):
         method_model = self.env["brokerage.crm.contact.method"]
@@ -100,7 +105,7 @@ class CrmContactAttemptWizard(models.TransientModel):
                 "res_id": lead.id,
                 "activity_type_id": self.next_activity_type_id.id,
                 "user_id": lead.user_id.id,
-                "date_deadline": self.next_activity_date,
+                "brokerage_reminder_datetime": self.next_activity_date,
                 "summary": _("Customer follow-up"),
                 "note": self.remarks or _("Follow up with the customer."),
             })

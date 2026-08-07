@@ -11,6 +11,7 @@ from . import brokerage_project
 from . import crm_contact_method
 from . import crm_meeting_type
 from . import crm_meeting_outcome
+from . import mail_activity
 from . import crm_booking_master
 from . import crm_contact_attempt
 from . import crm_meeting
