@@ -88,6 +88,13 @@ class TestInteractionMasterData(TransactionCase):
             "brokerage.crm.meeting.outcome",
         )
 
+    def test_broker_company_is_optional_company_relation_with_help(self):
+        field = self.env["crm.lead"]._fields["broker_company_id"]
+
+        self.assertEqual(field.comodel_name, "res.partner")
+        self.assertFalse(field.required)
+        self.assertIn("external broker company", field.help)
+
     def test_custom_meeting_outcome_is_saved_on_meeting(self):
         outcome = self.env["brokerage.crm.meeting.outcome"].create({
             "name": "Needs Spouse Approval",
@@ -110,3 +117,44 @@ class TestInteractionMasterData(TransactionCase):
 
         self.assertEqual(meeting.outcome_id, outcome)
         self.assertEqual(meeting.outcome, "other")
+
+    def test_contact_attempt_creates_exact_timed_follow_up(self):
+        status = self.env["brokerage.crm.lead.status"].create({
+            "name": "Timed Follow-up Required",
+            "code": "timed_follow_up_required",
+            "is_contact_attempt": True,
+            "requires_next_activity": True,
+        })
+        lead = self.env["crm.lead"].create({
+            "name": "Timed Contact Attempt Lead",
+            "assignment_type": "manual",
+            "user_id": self.env.user.id,
+        })
+        reminder_datetime = fields.Datetime.now() + timedelta(hours=2)
+        wizard = self.env[
+            "brokerage.crm.contact.attempt.wizard"
+        ].create({
+            "lead_id": lead.id,
+            "status_id": status.id,
+            "next_activity_type_id": self.env.ref(
+                "mail.mail_activity_data_todo"
+            ).id,
+            "next_activity_date": reminder_datetime,
+        })
+
+        wizard.action_confirm()
+
+        attempt = self.env["brokerage.crm.contact.attempt"].search([
+            ("lead_id", "=", lead.id),
+        ], limit=1)
+        self.assertEqual(attempt.next_activity_date, reminder_datetime)
+        self.assertTrue(attempt.activity_id)
+        self.assertEqual(
+            attempt.activity_id.brokerage_reminder_datetime,
+            reminder_datetime,
+        )
+        expected_date = fields.Datetime.context_timestamp(
+            attempt.activity_id.with_context(tz=lead.user_id.tz),
+            reminder_datetime,
+        ).date()
+        self.assertEqual(attempt.activity_id.date_deadline, expected_date)
