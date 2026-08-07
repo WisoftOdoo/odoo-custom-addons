@@ -1,6 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
 
+    <!-- Keep Kanban creation intentionally lightweight. The complete CRM
+         form remains available immediately after the lead is created. -->
+    <record id="view_crm_lead_quick_create_brokerage"
+            model="ir.ui.view">
+        <field name="name">crm.lead.form.quick.create.brokerage</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.quick_create_opportunity_form"/>
+        <field name="priority">1100</field>
+        <field name="arch" type="xml">
+            <xpath expr="//div[field[@name='commercial_partner_id']]"
+                   position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//div[field[@name='partner_id']]"
+                   position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='name']" position="attributes">
+                <attribute name="placeholder">Lead Name</attribute>
+            </xpath>
+            <xpath expr="//field[@name='expected_revenue']/ancestor::div[hasclass('d-flex')][1]"
+                   position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <xpath expr="//field[@name='recurring_revenue']/ancestor::div[hasclass('d-flex')][1]"
+                   position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+        </field>
+    </record>
+
     <!-- =========================================================
          CRM LEAD FORM EXTENSION
          ========================================================= -->
