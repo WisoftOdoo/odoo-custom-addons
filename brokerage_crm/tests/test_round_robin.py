@@ -91,8 +91,8 @@ class TestRoundRobin(TransactionCase):
             "team_ids": [(6, 0, [team.id])],
         })
         leads = self.env["crm.lead"].create([
-            {"name": "Lead 1", "team_id": team.id},
-            {"name": "Lead 2", "team_id": team.id},
+            {"name": "Lead 1", "team_id": team.id, "user_id": False},
+            {"name": "Lead 2", "team_id": team.id, "user_id": False},
         ])
         leads[0].write({"assignment_type": "round_robin"})
         leads[1].write({"assignment_type": "round_robin"})

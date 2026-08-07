@@ -50,6 +50,20 @@ class TestLeadValidation(TransactionCase):
         self.assertEqual(owned_at_creation.stage_id, assigned_stage)
         self.assertFalse(owned_at_creation.sla_cycle_active)
 
+        defaulted_at_creation = self.env["crm.lead"].with_context(
+            default_user_id=salesperson.id,
+            default_team_id=team.id,
+        ).create({
+            "name": "Owned Through Default Context",
+            "type": "opportunity",
+            "assignment_type": "manual",
+            "stage_id": new_stage.id,
+        })
+        self.assertEqual(defaulted_at_creation.user_id, salesperson)
+        self.assertEqual(defaulted_at_creation.team_id, team)
+        self.assertEqual(defaulted_at_creation.stage_id, assigned_stage)
+        self.assertFalse(defaulted_at_creation.sla_cycle_active)
+
         assigned_later = self.env["crm.lead"].create({
             "name": "Assigned Later",
             "type": "opportunity",
