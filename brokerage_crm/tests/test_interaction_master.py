@@ -1,5 +1,7 @@
 from datetime import timedelta
 
+from lxml import etree
+
 from odoo import fields
 from odoo.exceptions import ValidationError
 from odoo.tests.common import TransactionCase
@@ -94,6 +96,45 @@ class TestInteractionMasterData(TransactionCase):
         self.assertEqual(field.comodel_name, "res.partner")
         self.assertFalse(field.required)
         self.assertIn("external broker company", field.help)
+
+    def test_kanban_quick_create_only_shows_name_email_and_phone(self):
+        quick_view = self.env.ref("crm.quick_create_opportunity_form")
+        view = self.env["crm.lead"].get_view(
+            view_id=quick_view.id,
+            view_type="form",
+        )
+        root = etree.fromstring(view["arch"])
+
+        for field_name in ("commercial_partner_id", "partner_id"):
+            container = root.xpath(
+                "//div[field[@name='%s']]" % field_name
+            )
+            self.assertEqual(len(container), 1)
+            self.assertEqual(container[0].get("invisible"), "1")
+        for field_name in ("expected_revenue", "recurring_revenue"):
+            field_nodes = root.xpath(
+                "//field[@name='%s']" % field_name
+            )
+            if not field_nodes:
+                # Recurring revenue is removed by Odoo for users who do not
+                # belong to the optional recurring-revenue feature group.
+                continue
+            container = root.xpath(
+                "//field[@name='%s']/ancestor::div["
+                "contains(@class, 'd-flex')][1]" % field_name
+            )
+            self.assertEqual(len(container), 1)
+            self.assertEqual(container[0].get("invisible"), "1")
+
+        self.assertEqual(
+            root.xpath("//field[@name='name']")[0].get("placeholder"),
+            "Lead Name",
+        )
+        for field_name in ("name", "email_from", "phone"):
+            self.assertEqual(
+                len(root.xpath("//field[@name='%s']" % field_name)),
+                1,
+            )
 
     def test_custom_meeting_outcome_is_saved_on_meeting(self):
         outcome = self.env["brokerage.crm.meeting.outcome"].create({
