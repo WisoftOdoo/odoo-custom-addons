@@ -81,6 +81,7 @@ class TestBrokerageWhatsApp(TransactionCase):
         lead = self.env["crm.lead"].create({
             "name": "WhatsApp Assignment Lead",
             "type": "opportunity",
+            "user_id": False,
         })
 
         self.round_robin.assign_lead(lead)
