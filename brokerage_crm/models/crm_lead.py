@@ -573,7 +573,6 @@ class CrmLead(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         round_robin_flags = []
-        direct_assignment_flags = []
         explicit_team_flags = []
         for vals in vals_list:
             if vals.get("kyc_status") == "verified":
@@ -595,23 +594,25 @@ class CrmLead(models.Model):
                     fields.Datetime.now(),
                 )
             round_robin_flags.append(vals.get("assignment_type") == "round_robin")
-            direct_assignment_flags.append(bool(vals.get("user_id")))
             explicit_team_flags.append(bool(vals.get("team_id")))
             if vals.get("user_id"):
                 vals.setdefault("assigned_datetime", fields.Datetime.now())
 
         leads = super().create(vals_list)
-        for lead, use_round_robin, is_direct, has_explicit_team in zip(
+        for lead, use_round_robin, has_explicit_team in zip(
             leads,
             round_robin_flags,
-            direct_assignment_flags,
             explicit_team_flags,
         ):
             if use_round_robin:
                 lead.with_context(
                     force_global_round_robin=not has_explicit_team
                 )._apply_round_robin_assignment()
-            elif is_direct and lead.user_id:
+            elif lead.user_id:
+                # Evaluate the saved record, not only the incoming payload.
+                # Odoo may supply the salesperson through default_get,
+                # action context, the logged-in user or a Sales Team default,
+                # in which case user_id is absent from the original vals.
                 lead._move_new_lead_to_assigned_if_owned()
                 lead._record_direct_assignment(False, lead.user_id)
         return leads
@@ -725,7 +726,13 @@ class CrmLead(models.Model):
             "brokerage.crm.lead.status"
         ].sudo().search([("code", "=", "assigned")], limit=1)
         for lead in self:
-            if not lead.user_id or self._stage_code(lead.stage_id) != "new":
+            if (
+                not lead.user_id
+                or not lead.active
+                or lead.won_status != "pending"
+                or lead.lead_status_id.is_invalid
+                or self._stage_code(lead.stage_id) != "new"
+            ):
                 continue
             assigned_stage = lead._find_brokerage_stage(
                 "assigned", team=lead.team_id
