@@ -22,7 +22,8 @@
                 <group string="Next Activity">
                     <field name="next_activity_type_id"
                            options="{'no_create': True}"/>
-                    <field name="next_activity_date"/>
+                    <field name="next_activity_date"
+                           string="Next Activity Date &amp; Time"/>
                 </group>
 
                 <footer>

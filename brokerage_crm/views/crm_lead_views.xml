@@ -109,6 +109,12 @@
                 <field name="medium_id"/>
             </xpath>
 
+            <xpath expr="//field[@name='tag_ids']" position="after">
+                <field name="broker_company_id"
+                       context="{'default_is_company': True}"
+                       placeholder="Select or create a broker company"/>
+            </xpath>
+
             <!-- =================================================
                  SMART BUTTONS
                  ================================================= -->

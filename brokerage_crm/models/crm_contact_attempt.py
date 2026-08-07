@@ -81,8 +81,9 @@ class BrokerageCrmContactAttempt(models.Model):
         ondelete="restrict",
     )
 
-    next_activity_date = fields.Date(
-        string="Next Activity Date",
+    next_activity_date = fields.Datetime(
+        string="Next Activity Date & Time",
+        help="The exact follow-up time selected when this attempt was recorded.",
     )
 
     activity_id = fields.Many2one(
@@ -157,16 +158,16 @@ class BrokerageCrmContactAttempt(models.Model):
 
                 if not attempt.next_activity_date:
                     raise ValidationError(
-                        _("Next Activity Date is required.")
+                        _("Next Activity Date & Time is required.")
                     )
 
             if (
                 attempt.next_activity_date
                 and attempt.next_activity_date
-                < fields.Date.context_today(attempt)
+                < fields.Datetime.now()
             ):
                 raise ValidationError(
-                    _("Next Activity Date cannot be in the past.")
+                    _("Next Activity Date & Time cannot be in the past.")
                 )
 
     @api.constrains("attempt_datetime")
