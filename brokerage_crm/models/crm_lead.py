@@ -765,7 +765,11 @@ class CrmLead(models.Model):
         self.ensure_one()
         if not self.team_id:
             return
-        self.env["brokerage.crm.assignment.history"].create({
+        # Assignment history is an immutable system audit trail. Operational
+        # users may read it but must not receive direct create permission;
+        # elevate only this system-generated record and preserve the real
+        # actor explicitly in assigned_by_id.
+        self.env["brokerage.crm.assignment.history"].sudo().create({
             "lead_id": self.id,
             "source_id": self.source_id.id or False,
             "previous_user_id": previous_user.id if previous_user else False,
