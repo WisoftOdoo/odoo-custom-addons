@@ -1,6 +1,6 @@
 {
     "name": "Wisoft Brokerage CRM",
-    "version": "19.0.1.28.0",
+    "version": "19.0.1.29.0",
     "category": "Sales/CRM",
     "summary": "Off-plan brokerage lead management workflow",
     "author": "Tranquil",

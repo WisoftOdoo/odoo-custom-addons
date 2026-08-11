@@ -7,6 +7,53 @@ from odoo.tests.common import TransactionCase
 
 
 class TestLeadValidation(TransactionCase):
+    def test_team_leader_can_create_owned_lead_with_system_audit(self):
+        team_leader = self.env["res.users"].create({
+            "name": "Lead Creation Team Leader",
+            "login": "lead.creation.team.leader@test.invalid",
+            "group_ids": [(6, 0, [
+                self.env.ref(
+                    "brokerage_crm.group_brokerage_team_leader"
+                ).id,
+            ])],
+        })
+        team = self.env["crm.team"].create({
+            "name": "Team Leader Creation Team",
+            "user_id": team_leader.id,
+            "member_ids": [(6, 0, [team_leader.id])],
+        })
+        new_stage, assigned_stage = self.env["crm.stage"].create([
+            {
+                "name": "Team Leader Creation New",
+                "sequence": -120,
+                "brokerage_code": "new",
+                "team_ids": [(6, 0, [team.id])],
+            },
+            {
+                "name": "Team Leader Creation Assigned",
+                "sequence": -110,
+                "brokerage_code": "assigned",
+                "team_ids": [(6, 0, [team.id])],
+            },
+        ])
+
+        lead = self.env["crm.lead"].with_user(team_leader).with_context(
+            default_user_id=team_leader.id,
+            default_team_id=team.id,
+        ).create({
+            "name": "Team Leader Created Lead",
+            "type": "opportunity",
+            "assignment_type": "manual",
+            "stage_id": new_stage.id,
+        })
+
+        self.assertEqual(lead.user_id, team_leader)
+        self.assertEqual(lead.stage_id, assigned_stage)
+        history = lead.sudo().assignment_history_ids
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history.new_user_id, team_leader)
+        self.assertEqual(history.assigned_by_id, team_leader)
+
     def test_salesperson_assignment_moves_only_new_leads_to_assigned(self):
         salesperson = self.env["res.users"].create({
             "name": "Initial Assignment Agent",
