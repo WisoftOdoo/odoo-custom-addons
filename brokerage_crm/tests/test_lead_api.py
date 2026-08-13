@@ -270,6 +270,35 @@ class TestBrokerageLeadApi(HttpCase):
         self.assertEqual(response.status_code, 400)
         self.assertFalse(response.json()["success"])
 
+    def test_phone_or_email_is_accepted(self):
+        common = {
+            "source": self.campaign_source.name,
+            "assignment_type": "manual",
+        }
+        phone_only = self._post({
+            **common,
+            "name": "Phone Only API Customer",
+            "phone": "+971500000021",
+        })
+        self.assertEqual(phone_only.status_code, 201, phone_only.text)
+
+        email_only = self._post({
+            **common,
+            "name": "Email Only API Customer",
+            "email": "email.only.api@example.com",
+        })
+        self.assertEqual(email_only.status_code, 201, email_only.text)
+
+        neither = self._post({
+            **common,
+            "name": "No Contact API Customer",
+        })
+        self.assertEqual(neither.status_code, 400, neither.text)
+        self.assertEqual(
+            neither.json()["error"]["message"],
+            "Either phone or email is required.",
+        )
+
     def test_round_robin_is_requested_by_assignment_type_not_source(self):
         response = self._post({
             "customer_name": "Campaign Customer",

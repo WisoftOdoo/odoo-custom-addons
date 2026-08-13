@@ -48,12 +48,18 @@ class CrmLead(models.Model):
         normalized_phone = re.sub(r"\D", "", formatted_phone or "")
         if normalized_phone.startswith("00"):
             normalized_phone = normalized_phone[2:]
-        if not all((normalized_email, normalized_phone)):
+        if not normalized_email and not normalized_phone:
             return False
-        # Email + phone is the stable customer identity. The API still
-        # requires a customer name, but a spelling/name change must not create
-        # a second CRM lead for the same email and phone combination.
-        identity = "\x1f".join((normalized_email, normalized_phone))
+        # Use every contact channel supplied by the customer. This supports
+        # email-only and phone-only campaigns while keeping a stronger key
+        # when both details are available. The customer name is deliberately
+        # excluded because spelling changes must not create another lead.
+        identity_parts = []
+        if normalized_email:
+            identity_parts.append("email:%s" % normalized_email)
+        if normalized_phone:
+            identity_parts.append("phone:%s" % normalized_phone)
+        identity = "\x1f".join(identity_parts)
         return hashlib.sha256(identity.encode("utf-8")).hexdigest()
 
     @api.depends(
@@ -575,6 +581,27 @@ class CrmLead(models.Model):
         round_robin_flags = []
         explicit_team_flags = []
         for vals in vals_list:
+            # CRM screens and imports opened from CRM carry default_type.
+            # Validate those human-facing creation routes on the server too,
+            # while leaving low-level internal Odoo jobs able to create an
+            # incomplete draft that can be enriched later. The public API has
+            # the same rule in its controller before it reaches the ORM.
+            if self.env.context.get("default_type") in (
+                "lead", "opportunity"
+            ):
+                partner = self.env["res.partner"].browse(
+                    vals.get("partner_id")
+                ).exists()
+                if not (
+                    vals.get("email_from")
+                    or vals.get("phone")
+                    or partner.email
+                    or partner.phone
+                ):
+                    raise ValidationError(_(
+                        "Enter at least one customer contact detail: Phone "
+                        "or Email."
+                    ))
             if vals.get("kyc_status") == "verified":
                 vals.setdefault("kyc_verified_by_id", self.env.user.id)
                 vals.setdefault(
@@ -675,15 +702,6 @@ class CrmLead(models.Model):
             vals.pop("user_id", None)
 
         result = super().write(vals)
-
-        if stage and self._stage_code(stage) == "kyc":
-            kyc_to_start = self.filtered(
-                lambda lead: lead.kyc_status == "not_started"
-            )
-            if kyc_to_start:
-                super(CrmLead, kyc_to_start).write({
-                    "kyc_status": "in_progress",
-                })
 
         if stage and self._stage_code(stage) in (
             "contact_attempted", "contacted", "not_interested"
@@ -1277,12 +1295,11 @@ class CrmLead(models.Model):
         normalized = (stage.name or "").strip().lower().replace("/", " ")
         normalized = "_".join(normalized.split())
         aliases = {
-            "new_lead": "new", "assigned": "assigned",
+            "new": "new", "new_lead": "new", "assigned": "assigned",
             "contact_attempted": "contact_attempted", "contacted": "contacted",
             "meeting_scheduled": "meeting_scheduled",
             "meeting_completed": "meeting_completed", "forecast": "forecast",
-            "hot_booking_expected": "hot", "kyc_in_progress": "kyc",
-            "booking_documentation": "booking",
+            "hot_booking_expected": "hot",
             "not_interested": "not_interested",
         }
         return aliases.get(normalized)
@@ -1481,7 +1498,6 @@ class CrmLead(models.Model):
             )
         if code in (
             "meeting_scheduled", "meeting_completed", "forecast", "hot",
-            "kyc", "booking",
         ) and not successful_attempts:
             raise ValidationError(_(
                 "The current salesperson must record a successful contact "
@@ -1497,7 +1513,7 @@ class CrmLead(models.Model):
                 )
             )
         if code in (
-            "meeting_completed", "forecast", "hot", "kyc", "booking"
+            "meeting_completed", "forecast", "hot"
         ) and not meetings.filtered(
             lambda meeting: meeting.state == "completed"
         ):
@@ -1507,61 +1523,22 @@ class CrmLead(models.Model):
                     "after this assignment before moving forward."
                 )
             )
-        if code in ("hot", "kyc", "booking") and not all((
+        if code == "hot" and not all((
             self.final_developer_id, self.final_project_id,
             self.final_unit_type, self.expected_booking_date,
-            self.kyc_owner_id,
         )):
             raise ValidationError(
                 _(
                     "Final developer, project, unit type, expected booking "
-                    "date and KYC owner are required before progressing to "
-                    "Hot / Booking Expected and later stages."
+                    "date are required before progressing to Hot / Booking "
+                    "Expected."
                 )
             )
-        if code == "booking" and self.kyc_status != "verified":
-            raise ValidationError(_(
-                "KYC must be completed and marked as Verified before moving "
-                "the lead to Booking / Documentation."
-            ))
-        if code == "booking":
-            missing = [
-                label
-                for value, label in (
-                    (self.booking_unit_reference, _("Unit / Property Reference")),
-                    (self.estimated_property_value, _("Property Value")),
-                    (self.booking_amount, _("Booking Amount")),
-                    (self.booking_date, _("Booking Date")),
-                    (self.booking_payment_method_id, _("Payment Method")),
-                    (
-                        self.booking_documentation_status_id,
-                        _("Documentation Status"),
-                    ),
-                    (
-                        self.booking_documentation_owner_id,
-                        _("Documentation Owner"),
-                    ),
-                )
-                if not value
-            ]
-            if missing:
-                raise ValidationError(_(
-                    "Complete these Booking / Documentation details before "
-                    "moving the lead to this stage: %s"
-                ) % ", ".join(missing))
         if code == "won":
-            if current_code != "booking":
+            if current_code != "hot":
                 raise ValidationError(_(
-                    "The lead must pass through Booking / Documentation "
-                    "before it can be marked Closed Won."
-                ))
-            if not (
-                self.booking_documentation_status_id.allows_closing
-                and self.booking_document_ids
-            ):
-                raise ValidationError(_(
-                    "Complete the booking documentation and attach the "
-                    "booking documents before marking the lead Closed Won."
+                    "The lead must reach Hot / Booking Expected before it "
+                    "can be marked Closed Won."
                 ))
 
     @api.constrains(
