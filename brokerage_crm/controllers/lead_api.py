@@ -50,10 +50,8 @@ class BrokerageLeadApi(http.Controller):
         ).strip().lower()
         if not customer_name:
             return self._error("name or customer_name is required.", 400)
-        if not email:
-            return self._error("email is required.", 400)
-        if not phone:
-            return self._error("phone is required.", 400)
+        if not email and not phone:
+            return self._error("Either phone or email is required.", 400)
         if not source_name:
             return self._error("source is required.", 400)
         if not assignment_type:
@@ -114,6 +112,7 @@ class BrokerageLeadApi(http.Controller):
             duplicate_key,
             customer_name,
             email,
+            phone,
         )
         if existing:
             try:
@@ -185,6 +184,7 @@ class BrokerageLeadApi(http.Controller):
                 duplicate_key,
                 customer_name,
                 email,
+                phone,
             )
             if existing:
                 return self._success(
@@ -204,7 +204,7 @@ class BrokerageLeadApi(http.Controller):
         return self._success(lead, duplicate=False, status=201)
 
     @staticmethod
-    def _find_duplicate(duplicate_key, customer_name, email):
+    def _find_duplicate(duplicate_key, customer_name, email, phone):
         lead_model = request.env["crm.lead"].sudo().with_context(
             active_test=False,
         )
@@ -218,15 +218,22 @@ class BrokerageLeadApi(http.Controller):
         # by the previous name+email+phone algorithm. It can be removed after
         # all databases have recomputed the field at least once.
         normalized_email = tools.email_normalize(str(email or "").strip())
-        if not normalized_email:
-            return lead_model.browse()
-        candidates = lead_model.search([
-            ("email_normalized", "=", normalized_email),
-        ], order="id")
+        if normalized_email:
+            candidates = lead_model.search([
+                ("email_normalized", "=", normalized_email),
+            ], order="id")
+            if not phone:
+                return candidates[:1]
+        else:
+            # Compatibility fallback for phone-only leads whose stored key
+            # has not yet been recomputed by the upgrade migration.
+            candidates = lead_model.search([
+                ("phone", "!=", False),
+            ], order="id")
         for candidate in candidates:
             current_key = candidate._brokerage_build_deduplication_key(
                 customer_name,
-                candidate.email_from,
+                candidate.email_from if email else False,
                 candidate.phone,
                 candidate.company_id,
             )

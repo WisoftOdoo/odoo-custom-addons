@@ -1,5 +1,6 @@
 import base64
 from datetime import timedelta
+from unittest import skip
 
 from odoo import fields
 from odoo.exceptions import ValidationError
@@ -7,6 +8,24 @@ from odoo.tests.common import TransactionCase
 
 
 class TestLeadValidation(TransactionCase):
+    def test_crm_creation_requires_phone_or_email(self):
+        crm_leads = self.env["crm.lead"].with_context(
+            default_type="opportunity"
+        )
+        with self.assertRaisesRegex(ValidationError, "Phone or Email"):
+            crm_leads.create({"name": "Missing Contact Details"})
+
+        phone_lead = crm_leads.create({
+            "name": "Phone Contact",
+            "phone": "+971500009991",
+        })
+        email_lead = crm_leads.create({
+            "name": "Email Contact",
+            "email_from": "contact.validation@example.com",
+        })
+        self.assertTrue(phone_lead)
+        self.assertTrue(email_lead)
+
     def test_team_leader_can_create_owned_lead_with_system_audit(self):
         team_leader = self.env["res.users"].create({
             "name": "Lead Creation Team Leader",
@@ -475,6 +494,40 @@ class TestLeadValidation(TransactionCase):
         current_lead.write({"stage_id": stages[3].id})
         self.assertNotEqual(new_meeting.id, old_meeting.id)
 
+    def test_closed_won_follows_hot_without_kyc_or_booking(self):
+        hot_stage, won_stage, assigned_stage = self.env["crm.stage"].create([
+            {
+                "name": "Direct Won Test Hot",
+                "sequence": 80,
+                "brokerage_code": "hot",
+            },
+            {
+                "name": "Direct Won Test Closed Won",
+                "sequence": 90,
+                "brokerage_code": "won",
+                "is_won": True,
+            },
+            {
+                "name": "Direct Won Test Assigned",
+                "sequence": 20,
+                "brokerage_code": "assigned",
+            },
+        ])
+        hot_lead = self.env["crm.lead"].create({
+            "name": "Hot Lead Ready To Win",
+            "stage_id": hot_stage.id,
+        })
+        hot_lead.write({"stage_id": won_stage.id})
+        self.assertEqual(hot_lead.stage_id, won_stage)
+
+        early_lead = self.env["crm.lead"].create({
+            "name": "Lead Not Yet Hot",
+            "stage_id": assigned_stage.id,
+        })
+        with self.assertRaisesRegex(ValidationError, "must reach Hot"):
+            early_lead.write({"stage_id": won_stage.id})
+
+    @skip("KYC and Booking / Documentation were retired in 19.0.1.30.0")
     def test_booking_requires_complete_verified_kyc(self):
         agent = self.env["res.users"].create({
             "name": "Booking KYC Agent",
