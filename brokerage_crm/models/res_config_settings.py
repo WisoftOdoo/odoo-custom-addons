@@ -7,6 +7,59 @@ from odoo.exceptions import ValidationError
 class ResConfigSettings(models.TransientModel):
     _inherit = "res.config.settings"
 
+    brokerage_meta_enabled = fields.Boolean(
+        string="Enable Meta Lead Ads",
+        config_parameter="brokerage_crm.meta_enabled",
+    )
+    brokerage_meta_callback_url = fields.Char(
+        string="Meta Callback URL",
+        compute="_compute_brokerage_meta_callback_url",
+        readonly=True,
+    )
+    brokerage_meta_verify_token = fields.Char(
+        string="Webhook Verify Token",
+        config_parameter="brokerage_crm.meta_verify_token",
+        copy=False,
+    )
+    brokerage_meta_app_secret = fields.Char(
+        string="Meta App Secret",
+        config_parameter="brokerage_crm.meta_app_secret",
+        copy=False,
+    )
+    brokerage_meta_page_access_token = fields.Char(
+        string="Page Access Token",
+        config_parameter="brokerage_crm.meta_page_access_token",
+        copy=False,
+    )
+    brokerage_meta_page_id = fields.Char(
+        string="Facebook Page ID",
+        config_parameter="brokerage_crm.meta_page_id",
+    )
+    brokerage_meta_graph_version = fields.Char(
+        string="Graph API Version",
+        config_parameter="brokerage_crm.meta_graph_version",
+        default="v24.0",
+    )
+    brokerage_meta_source_id = fields.Many2one(
+        comodel_name="utm.source",
+        string="Odoo Lead Source",
+        config_parameter="brokerage_crm.meta_source_id",
+        default=lambda self: self.env.ref(
+            "brokerage_crm.lead_source_meta",
+            raise_if_not_found=False,
+        ),
+    )
+    brokerage_meta_request_timeout = fields.Integer(
+        string="Graph API Response Timeout",
+        config_parameter="brokerage_crm.meta_request_timeout",
+        default=15,
+    )
+    brokerage_meta_max_attempts = fields.Integer(
+        string="Maximum Processing Attempts",
+        config_parameter="brokerage_crm.meta_max_attempts",
+        default=5,
+    )
+
     brokerage_telephony_provider_id = fields.Many2one(
         related="company_id.brokerage_telephony_provider_id",
         readonly=False,
@@ -112,6 +165,18 @@ class ResConfigSettings(models.TransientModel):
         )
         return rule.sudo() if rule else rule
 
+    @api.depends_context("company")
+    def _compute_brokerage_meta_callback_url(self):
+        base_url = self.env["ir.config_parameter"].sudo().get_param(
+            "web.base.url",
+            "",
+        ).rstrip("/")
+        for settings in self:
+            settings.brokerage_meta_callback_url = (
+                "%s/brokerage/api/v1/meta/webhook" % base_url
+                if base_url else False
+            )
+
     @api.model
     def get_values(self):
         values = super().get_values()
@@ -215,10 +280,44 @@ class ResConfigSettings(models.TransientModel):
                 "Warm Up To must be greater than Hot Up To."
             ))
 
+    def _validate_brokerage_meta_settings(self):
+        self.ensure_one()
+        if not self.brokerage_meta_enabled:
+            return
+        if not (self.brokerage_meta_verify_token or "").strip():
+            raise ValidationError(_("Enter the Meta webhook verify token."))
+        if not (self.brokerage_meta_app_secret or "").strip():
+            raise ValidationError(_("Enter the Meta App Secret."))
+        if not (self.brokerage_meta_page_access_token or "").strip():
+            raise ValidationError(_("Enter the Meta Page access token."))
+        page_id = (self.brokerage_meta_page_id or "").strip()
+        if not page_id.isdigit():
+            raise ValidationError(_(
+                "The Facebook Page ID must contain digits only."
+            ))
+        if not re.fullmatch(
+            r"v\d+\.\d+",
+            (self.brokerage_meta_graph_version or "").strip(),
+        ):
+            raise ValidationError(_(
+                "The Meta Graph API version must use a value such as v24.0."
+            ))
+        if not self.brokerage_meta_source_id:
+            raise ValidationError(_("Select the Odoo source for Meta leads."))
+        if self.brokerage_meta_request_timeout <= 0:
+            raise ValidationError(_(
+                "The Meta Graph API response timeout must be positive."
+            ))
+        if self.brokerage_meta_max_attempts <= 0:
+            raise ValidationError(_(
+                "Maximum Meta processing attempts must be positive."
+            ))
+
     def set_values(self):
         for settings in self:
             settings._validate_brokerage_sla_timings()
             settings._validate_brokerage_lead_quality_aging()
+            settings._validate_brokerage_meta_settings()
             if not settings.brokerage_ultramsg_enabled:
                 continue
             instance_id = (

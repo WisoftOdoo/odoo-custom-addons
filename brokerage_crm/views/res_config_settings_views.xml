@@ -8,6 +8,91 @@
         <field name="inherit_id" ref="crm.res_config_settings_view_form"/>
         <field name="arch" type="xml">
             <xpath expr="//app[@name='crm']" position="inside">
+                <block title="Meta Lead Ads Integration"
+                       name="brokerage_meta_lead_ads_settings"
+                       groups="base.group_system">
+                    <setting id="brokerage_meta_enabled"
+                             string="Direct Meta Lead Ads Webhook"
+                             help="Receive Facebook and Instagram Instant Form leads directly from Meta, then apply the existing duplicate and Round Robin workflow.">
+                        <field name="brokerage_meta_enabled"/>
+                        <div class="content-group mt16"
+                             invisible="not brokerage_meta_enabled">
+                            <div class="row mt8">
+                                <label for="brokerage_meta_callback_url"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_meta_callback_url"
+                                       class="oe_inline"/>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_meta_verify_token"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_meta_verify_token"
+                                       class="oe_inline"
+                                       password="True"
+                                       required="brokerage_meta_enabled"/>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_meta_app_secret"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_meta_app_secret"
+                                       class="oe_inline"
+                                       password="True"
+                                       required="brokerage_meta_enabled"/>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_meta_page_access_token"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_meta_page_access_token"
+                                       class="oe_inline"
+                                       password="True"
+                                       required="brokerage_meta_enabled"/>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_meta_page_id"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_meta_page_id"
+                                       class="oe_inline"
+                                       required="brokerage_meta_enabled"/>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_meta_graph_version"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_meta_graph_version"
+                                       class="oe_inline"
+                                       required="brokerage_meta_enabled"/>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_meta_source_id"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_meta_source_id"
+                                       class="oe_inline"
+                                       required="brokerage_meta_enabled"/>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_meta_request_timeout"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_meta_request_timeout"
+                                       class="oe_inline"
+                                       required="brokerage_meta_enabled"/>
+                                <span class="ms-2">seconds</span>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_meta_max_attempts"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_meta_max_attempts"
+                                       class="oe_inline"
+                                       required="brokerage_meta_enabled"/>
+                            </div>
+                            <div class="text-muted mt8">
+                                Copy the Callback URL and Verify Token into the
+                                Meta Developer App. Subscribe the Page object
+                                to the leadgen field. Tokens are stored as
+                                protected system parameters and are never
+                                written to the event log.
+                            </div>
+                        </div>
+                    </setting>
+                </block>
                 <block title="Brokerage Telephony"
                        name="brokerage_telephony_settings"
                        groups="base.group_no_one">
