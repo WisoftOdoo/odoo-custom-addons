@@ -79,6 +79,86 @@ class CrmLead(models.Model):
                 )
             )
 
+    @api.model
+    def _brokerage_find_duplicate_by_contact(
+        self,
+        email,
+        phone,
+        duplicate_key=None,
+        exclude_lead=None,
+        company=None,
+    ):
+        """Find an existing lead using the shared API/manual identity rule."""
+        lead_model = self.sudo().with_context(active_test=False)
+        duplicate_key = duplicate_key or self._brokerage_build_deduplication_key(
+            False,
+            email,
+            phone,
+            company,
+        )
+        if not duplicate_key:
+            return lead_model.browse()
+
+        domain = [("brokerage_deduplication_key", "=", duplicate_key)]
+        if exclude_lead:
+            domain.append(("id", "!=", exclude_lead.id))
+        existing = lead_model.search(domain, order="id", limit=1)
+        if existing:
+            return existing
+
+        # Compatibility fallback for databases where an older stored-key
+        # algorithm has not yet been recomputed. This keeps the API and the
+        # manual form consistent during rolling deployments.
+        normalized_email = tools.email_normalize(str(email or "").strip())
+        candidate_domain = []
+        if normalized_email:
+            candidate_domain.append(("email_normalized", "=", normalized_email))
+        else:
+            candidate_domain.append(("phone", "!=", False))
+        if exclude_lead:
+            candidate_domain.append(("id", "!=", exclude_lead.id))
+        candidates = lead_model.search(candidate_domain, order="id")
+        if normalized_email and not phone:
+            return candidates[:1]
+        for candidate in candidates:
+            candidate_key = candidate._brokerage_build_deduplication_key(
+                False,
+                candidate.email_from if email else False,
+                candidate.phone,
+                candidate.company_id,
+            )
+            if candidate_key == duplicate_key:
+                candidate._compute_brokerage_deduplication_key()
+                return candidate
+        return lead_model.browse()
+
+    @api.onchange("email_from", "phone")
+    def _onchange_brokerage_duplicate_contact(self):
+        """Warn CRM users before they attempt to save a duplicate lead."""
+        if len(self) != 1 or self._origin.id:
+            return
+        duplicate = self._brokerage_find_duplicate_by_contact(
+            self.email_from,
+            self.phone,
+            company=self.company_id,
+        )
+        if not duplicate:
+            return
+        return {
+            "warning": {
+                "title": _("Duplicate Lead Found"),
+                "message": _(
+                    "An existing lead already uses these contact details.\n"
+                    "Lead: %(lead)s\nSalesperson: %(salesperson)s\n"
+                    "Stage: %(stage)s\n\nOpen and continue the existing lead "
+                    "instead of creating another one.",
+                    lead=duplicate.display_name,
+                    salesperson=duplicate.user_id.display_name or _("Unassigned"),
+                    stage=duplicate.stage_id.display_name or _("No Stage"),
+                ),
+            },
+        }
+
     repeat_enquiry_count = fields.Integer(
         string="Repeat Enquiries",
         readonly=True,
@@ -580,28 +660,75 @@ class CrmLead(models.Model):
     def create(self, vals_list):
         round_robin_flags = []
         explicit_team_flags = []
+        manual_crm_creation = self.env.context.get("default_type") in (
+            "lead", "opportunity"
+        )
+        batch_contact_keys = set()
         for vals in vals_list:
             # CRM screens and imports opened from CRM carry default_type.
             # Validate those human-facing creation routes on the server too,
             # while leaving low-level internal Odoo jobs able to create an
             # incomplete draft that can be enriched later. The public API has
             # the same rule in its controller before it reaches the ORM.
-            if self.env.context.get("default_type") in (
-                "lead", "opportunity"
-            ):
+            if manual_crm_creation:
                 partner = self.env["res.partner"].browse(
                     vals.get("partner_id")
                 ).exists()
-                if not (
-                    vals.get("email_from")
-                    or vals.get("phone")
-                    or partner.email
-                    or partner.phone
-                ):
+                email = vals.get("email_from") or partner.email
+                phone = vals.get("phone") or partner.phone
+                if not (email or phone):
                     raise ValidationError(_(
                         "Enter at least one customer contact detail: Phone "
                         "or Email."
                     ))
+                company = self.env["res.company"].browse(
+                    vals.get("company_id")
+                ).exists() or self.env.company
+                duplicate_key = self._brokerage_build_deduplication_key(
+                    vals.get("contact_name") or vals.get("name"),
+                    email,
+                    phone,
+                    company,
+                )
+                # Serialize manual submissions with API webhooks carrying the
+                # same customer identity, preventing a race-created duplicate.
+                self.env.cr.execute(
+                    "SELECT pg_advisory_xact_lock(hashtext(%s))",
+                    [duplicate_key],
+                )
+                duplicate = self._brokerage_find_duplicate_by_contact(
+                    email,
+                    phone,
+                    duplicate_key=duplicate_key,
+                    company=company,
+                )
+                if duplicate or duplicate_key in batch_contact_keys:
+                    if duplicate:
+                        detail = _(
+                            "Existing lead: %(lead)s\nSalesperson: "
+                            "%(salesperson)s\nStage: %(stage)s",
+                            lead=duplicate.display_name,
+                            salesperson=(
+                                duplicate.user_id.display_name
+                                or _("Unassigned")
+                            ),
+                            stage=(
+                                duplicate.stage_id.display_name
+                                or _("No Stage")
+                            ),
+                        )
+                    else:
+                        detail = _(
+                            "The same contact details were entered more than "
+                            "once in this creation batch."
+                        )
+                    raise ValidationError(_(
+                        "A lead already exists for this phone/email.\n\n"
+                        "%(detail)s\n\nOpen and continue the existing lead "
+                        "instead of creating another record.",
+                        detail=detail,
+                    ))
+                batch_contact_keys.add(duplicate_key)
             if vals.get("kyc_status") == "verified":
                 vals.setdefault("kyc_verified_by_id", self.env.user.id)
                 vals.setdefault(

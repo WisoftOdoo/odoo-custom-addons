@@ -26,6 +26,47 @@ class TestLeadValidation(TransactionCase):
         self.assertTrue(phone_lead)
         self.assertTrue(email_lead)
 
+    def test_manual_crm_creation_warns_and_blocks_duplicate_contact(self):
+        crm_leads = self.env["crm.lead"].with_context(
+            default_type="opportunity"
+        )
+        existing = crm_leads.create({
+            "name": "Original Manual Enquiry",
+            "contact_name": "Original Customer Name",
+            "email_from": "manual.duplicate@example.com",
+            "phone": "+971500008831",
+        })
+
+        draft = crm_leads.new({
+            "name": "Repeat Manual Enquiry",
+            "contact_name": "Different Customer Spelling",
+            "email_from": "MANUAL.DUPLICATE@example.com",
+            "phone": "+971500008831",
+        })
+        warning = draft._onchange_brokerage_duplicate_contact()
+        self.assertEqual(warning["warning"]["title"], "Duplicate Lead Found")
+        self.assertIn(existing.display_name, warning["warning"]["message"])
+
+        with self.assertRaisesRegex(
+            ValidationError,
+            "A lead already exists for this phone/email",
+        ):
+            crm_leads.create({
+                "name": "Repeat Manual Enquiry",
+                "contact_name": "Different Customer Spelling",
+                "email_from": "MANUAL.DUPLICATE@example.com",
+                "phone": "+971500008831",
+            })
+
+        self.assertEqual(
+            self.env["crm.lead"].search_count([
+                ("brokerage_deduplication_key", "=", (
+                    existing.brokerage_deduplication_key
+                )),
+            ]),
+            1,
+        )
+
     def test_team_leader_can_create_owned_lead_with_system_audit(self):
         team_leader = self.env["res.users"].create({
             "name": "Lead Creation Team Leader",

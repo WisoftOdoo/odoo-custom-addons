@@ -2,7 +2,7 @@ import logging
 
 from psycopg2 import IntegrityError
 
-from odoo import http, tools, _
+from odoo import http, _
 from odoo.exceptions import ValidationError
 from odoo.http import request
 
@@ -205,42 +205,13 @@ class BrokerageLeadApi(http.Controller):
 
     @staticmethod
     def _find_duplicate(duplicate_key, customer_name, email, phone):
-        lead_model = request.env["crm.lead"].sudo().with_context(
-            active_test=False,
+        return request.env[
+            "crm.lead"
+        ].sudo()._brokerage_find_duplicate_by_contact(
+            email,
+            phone,
+            duplicate_key=duplicate_key,
         )
-        existing = lead_model.search([
-            ("brokerage_deduplication_key", "=", duplicate_key),
-        ], order="id", limit=1)
-        if existing:
-            return existing
-
-        # Compatibility fallback for records whose stored key was generated
-        # by the previous name+email+phone algorithm. It can be removed after
-        # all databases have recomputed the field at least once.
-        normalized_email = tools.email_normalize(str(email or "").strip())
-        if normalized_email:
-            candidates = lead_model.search([
-                ("email_normalized", "=", normalized_email),
-            ], order="id")
-            if not phone:
-                return candidates[:1]
-        else:
-            # Compatibility fallback for phone-only leads whose stored key
-            # has not yet been recomputed by the upgrade migration.
-            candidates = lead_model.search([
-                ("phone", "!=", False),
-            ], order="id")
-        for candidate in candidates:
-            current_key = candidate._brokerage_build_deduplication_key(
-                customer_name,
-                candidate.email_from if email else False,
-                candidate.phone,
-                candidate.company_id,
-            )
-            if current_key == duplicate_key:
-                candidate._compute_brokerage_deduplication_key()
-                return candidate
-        return lead_model.browse()
 
     @staticmethod
     def _find_or_create_utm(model_name, value):
