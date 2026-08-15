@@ -14,3 +14,4 @@ from . import test_solo_campaign
 from . import test_lead_quality_aging
 from . import test_customer_requirement_options
 from . import test_timed_activity_reminder
+from . import test_meta_webhook
