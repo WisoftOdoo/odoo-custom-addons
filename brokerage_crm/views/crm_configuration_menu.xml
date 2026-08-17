@@ -136,6 +136,13 @@
               sequence="45"
               groups="brokerage_crm.group_brokerage_sales_manager"/>
 
+    <menuitem id="menu_brokerage_meta_webhook_log"
+              name="Meta Lead Ads Event Log"
+              parent="menu_brokerage_crm_configuration"
+              action="action_brokerage_meta_webhook_event"
+              sequence="47"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
     <menuitem id="menu_brokerage_telephony"
               name="Telephony"
               parent="menu_brokerage_crm_configuration"
