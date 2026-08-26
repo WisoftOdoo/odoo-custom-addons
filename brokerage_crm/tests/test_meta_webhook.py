@@ -42,6 +42,14 @@ class TestMetaWebhookProcessing(TransactionCase):
         parameters.set_param("brokerage_crm.meta_page_id", "123456")
         parameters.set_param("brokerage_crm.meta_graph_version", "v24.0")
         parameters.set_param("brokerage_crm.meta_source_id", cls.source.id)
+        cls.env["brokerage.meta.campaign.rule"].create({
+            "name": "Dubai Apartments Round Robin",
+            "meta_page_id": "123456",
+            "meta_campaign_id": "CAMPAIGN-30",
+            "assignment_type": "round_robin",
+            "routing_mode": "dedicated_team",
+            "team_ids": [(6, 0, [cls.team.id])],
+        })
 
     def test_process_meta_lead_uses_existing_round_robin_workflow(self):
         event = self.env["brokerage.meta.webhook.event"].enqueue_payload({
@@ -96,6 +104,67 @@ class TestMetaWebhookProcessing(TransactionCase):
         self.assertEqual(lead.source_id, self.source)
         self.assertEqual(lead.campaign_id.name, "Dubai Apartments Campaign")
         self.assertIn("Preferred Location: Dubai Marina", lead.description)
+
+    def test_unconfigured_meta_campaign_stays_manual_and_unassigned(self):
+        event = self.env["brokerage.meta.webhook.event"].enqueue_payload({
+            "object": "page",
+            "entry": [{
+                "id": "123456",
+                "changes": [{
+                    "field": "leadgen",
+                    "value": {
+                        "leadgen_id": "META-LEAD-MANUAL-1002",
+                        "form_id": "FORM-MANUAL",
+                    },
+                }],
+            }],
+        })
+        response = Mock()
+        response.ok = True
+        response.status_code = 200
+        response.text = ""
+        response.json.return_value = {
+            "id": "META-LEAD-MANUAL-1002",
+            "created_time": "2026-08-14T11:00:00+0000",
+            "form_id": "FORM-MANUAL",
+            "campaign_id": "CAMPAIGN-NOT-CONFIGURED",
+            "campaign_name": "Manual Review Campaign",
+            "platform": "facebook",
+            "field_data": [
+                {"name": "full_name", "values": ["Manual Meta Customer"]},
+                {"name": "email", "values": ["manual.meta@example.com"]},
+                {"name": "phone_number", "values": ["+971500009999"]},
+            ],
+        }
+        request_path = (
+            "odoo.addons.brokerage_crm.models.meta_webhook_event.requests.get"
+        )
+        with patch(request_path, return_value=response):
+            lead = event.with_context(allow_meta_request=True)._process_event()
+
+        self.assertEqual(event.state, "processed")
+        self.assertEqual(lead.assignment_type, "manual")
+        self.assertFalse(lead.user_id)
+        self.assertFalse(lead.team_id)
+        self.assertNotEqual(lead.stage_id.brokerage_code, "assigned")
+
+    def test_form_specific_manual_rule_overrides_campaign_round_robin(self):
+        self.env["brokerage.meta.campaign.rule"].create({
+            "name": "Dubai Apartments Manual Form",
+            "meta_page_id": "123456",
+            "meta_campaign_id": "CAMPAIGN-30",
+            "meta_form_id": "FORM-MANUAL-OVERRIDE",
+            "assignment_type": "manual",
+            "routing_mode": "manual",
+        })
+        assignment_type = self.env[
+            "brokerage.meta.campaign.rule"
+        ].assignment_type_for(
+            "123456",
+            "CAMPAIGN-30",
+            "FORM-MANUAL-OVERRIDE",
+        )
+        self.assertEqual(assignment_type, "manual")
 
 
 @tagged("post_install", "-at_install")

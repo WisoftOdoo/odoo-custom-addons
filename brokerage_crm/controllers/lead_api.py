@@ -83,6 +83,11 @@ class BrokerageLeadApi(http.Controller):
             or payload.get("medium_name")
             or payload.get("utm_medium"),
         )
+        campaign_policy = request.env[
+            "brokerage.meta.campaign.rule"
+        ].sudo().policy_for_utm_campaign(campaign)
+        if campaign_policy and campaign_policy.routing_mode == "manual":
+            assignment_type = "manual"
 
         team = request.env["crm.team"].sudo().browse()
         if payload.get("team_id") not in (None, False, ""):
@@ -125,6 +130,7 @@ class BrokerageLeadApi(http.Controller):
                         email,
                         phone,
                         assignment_type,
+                        campaign_policy=campaign_policy,
                     )
             except ValidationError as error:
                 return self._error(str(error), 422)
@@ -167,6 +173,8 @@ class BrokerageLeadApi(http.Controller):
             # pipeline; Odoo's separate lead qualification screen is not used.
             "type": "opportunity",
         }
+        if campaign_policy:
+            values["campaign_routing_policy_id"] = campaign_policy.id
         if assignment_type == "manual":
             new_stage = self._find_new_lead_stage(team)
             if not new_stage:

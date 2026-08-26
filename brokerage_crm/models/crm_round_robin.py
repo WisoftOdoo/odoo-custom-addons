@@ -259,6 +259,17 @@ class CrmRoundRobin(models.Model):
         if self.team_id.brokerage_solo_campaign:
             return self.env["res.users"]
 
+        return self._get_campaign_eligible_users()
+
+    def _get_campaign_eligible_users(self):
+        """Ordered users for an explicitly permitted campaign team.
+
+        Campaign policies define isolation themselves, so the legacy Solo Team
+        exclusion must not suppress a team explicitly selected by a policy.
+        This method never consumes any legacy Round Robin cursor.
+        """
+        self.ensure_one()
+
         eligible_users = self.member_ids.filtered(
             lambda user:
                 user.active

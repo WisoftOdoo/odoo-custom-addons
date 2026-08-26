@@ -125,9 +125,18 @@ class CrmContactAttemptWizard(models.TransientModel):
 
         reassigned_user = False
         if self.status_id.code == "not_interested":
-            # A solo campaign never participates in the independent Not
-            # Interested queue. It remains in the final bucket instead.
-            if not lead.team_id.brokerage_solo_campaign:
+            if lead.campaign_routing_policy_id:
+                reassigned_user = lead.campaign_routing_policy_id.sudo(
+                ).reassign_not_interested_once(
+                    lead.sudo(),
+                    reason=_(
+                        "One-time campaign reassignment after the agent "
+                        "recorded Not Interested"
+                    ),
+                )
+            # Legacy Solo Campaign teams remain isolated when no campaign
+            # routing policy is attached to the lead.
+            elif not lead.team_id.brokerage_solo_campaign:
                 reassigned_user = self.env[
                     "brokerage.crm.round.robin"
                 ].assign_lead_not_interested_once(

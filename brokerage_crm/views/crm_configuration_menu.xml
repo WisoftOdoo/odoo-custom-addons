@@ -143,6 +143,13 @@
               sequence="47"
               groups="brokerage_crm.group_brokerage_sales_manager"/>
 
+    <menuitem id="menu_brokerage_meta_campaign_rules"
+              name="Campaign Routing Policies"
+              parent="menu_brokerage_crm_configuration"
+              action="action_brokerage_meta_campaign_rule"
+              sequence="46"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
     <menuitem id="menu_brokerage_telephony"
               name="Telephony"
               parent="menu_brokerage_crm_configuration"
