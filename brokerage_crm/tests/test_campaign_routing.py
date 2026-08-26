@@ -29,10 +29,19 @@ class TestCampaignRouting(TransactionCase):
         for queue in cls.queues:
             for index, line in enumerate(queue.agent_sequence_ids.sorted("user_id"), 1):
                 line.sequence = index * 10
-        cls.env["crm.stage"].create({
-            "name": "Campaign Assigned", "brokerage_code": "assigned",
-            "sequence": -300, "team_ids": [(6, 0, cls.teams.ids)],
-        })
+        cls.new_stage, cls.assigned_stage = cls.env["crm.stage"].create([
+            {
+                "name": "Campaign New Lead",
+                "brokerage_code": "new",
+                "sequence": -310,
+            },
+            {
+                "name": "Campaign Assigned",
+                "brokerage_code": "assigned",
+                "sequence": -300,
+                "team_ids": [(6, 0, cls.teams.ids)],
+            },
+        ])
 
     def _policy(self, name, mode, teams=False, fallback="manager_review", fallback_teams=False):
         campaign = self.env["utm.campaign"].create({"name": name})
