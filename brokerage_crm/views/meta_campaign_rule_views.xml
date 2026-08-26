@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_brokerage_meta_campaign_rule_list" model="ir.ui.view">
+        <field name="name">brokerage.campaign.routing.policy.list</field>
+        <field name="model">brokerage.meta.campaign.rule</field>
+        <field name="arch" type="xml">
+            <list string="Campaign Routing Policies" decoration-muted="not active">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="utm_campaign_id" optional="show"/>
+                <field name="meta_campaign_name" optional="show"/>
+                <field name="routing_mode" widget="badge"/>
+                <field name="team_ids" widget="many2many_tags" optional="show"/>
+                <field name="fallback_mode" optional="show"/>
+                <field name="assignment_count" optional="show"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_brokerage_meta_campaign_rule_form" model="ir.ui.view">
+        <field name="name">brokerage.campaign.routing.policy.form</field>
+        <field name="model">brokerage.meta.campaign.rule</field>
+        <field name="arch" type="xml">
+            <form string="Campaign Routing Policy">
+                <header>
+                    <button name="action_reset_rotation" type="object"
+                            string="Reset This Campaign Rotation"
+                            class="btn-secondary"
+                            confirm="Reset all independent cursors and reporting totals for this campaign? Existing lead assignments will not change."/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" text="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Example: Shared Launch - Teams A and C"/></h1>
+                    </div>
+                    <group>
+                        <group string="Campaign Identity">
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="utm_campaign_id" options="{'no_create_edit': False}"/>
+                            <field name="meta_page_id"/>
+                            <field name="meta_campaign_id"/>
+                            <field name="meta_campaign_name"/>
+                            <field name="meta_form_id"/>
+                        </group>
+                        <group string="Routing">
+                            <field name="routing_mode"/>
+                            <field name="team_ids" widget="many2many_tags"
+                                   invisible="routing_mode not in ('dedicated_team', 'shared_teams')"/>
+                            <field name="fallback_mode"
+                                   invisible="routing_mode == 'manual'"/>
+                            <field name="fallback_team_ids" widget="many2many_tags"
+                                   invisible="fallback_mode != 'selected_teams' or routing_mode == 'manual'"/>
+                            <field name="sequence"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <div class="alert alert-info" role="alert">
+                        Every policy has independent team and salesperson positions. Dedicated and Shared
+                        policies use only the selected teams. Global policies use only Sales Teams with
+                        <b>Global Campaign Round Robin</b> enabled. Unknown campaigns remain Manual in New Lead.
+                    </div>
+                    <notebook>
+                        <page string="Rotation State">
+                            <group>
+                                <group>
+                                    <field name="next_team_id"/>
+                                    <field name="fallback_next_team_id"/>
+                                    <field name="last_team_id"/>
+                                    <field name="last_user_id"/>
+                                    <field name="last_assignment_datetime"/>
+                                </group>
+                                <group>
+                                    <field name="assignment_count"/>
+                                    <field name="reassignment_count"/>
+                                    <field name="not_interested_count"/>
+                                </group>
+                            </group>
+                            <field name="team_state_ids">
+                                <list create="false" edit="false" delete="false">
+                                    <field name="team_id"/>
+                                    <field name="initial_next_index"/>
+                                    <field name="initial_assignment_count"/>
+                                    <field name="sla_next_index"/>
+                                    <field name="sla_assignment_count"/>
+                                    <field name="not_interested_next_index"/>
+                                    <field name="not_interested_assignment_count"/>
+                                    <field name="last_user_id"/>
+                                    <field name="last_assignment_datetime"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                    <field name="assignment_type" invisible="1"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_brokerage_meta_campaign_rule_search" model="ir.ui.view">
+        <field name="name">brokerage.campaign.routing.policy.search</field>
+        <field name="model">brokerage.meta.campaign.rule</field>
+        <field name="arch" type="xml">
+            <search string="Campaign Routing Policies">
+                <field name="name"/>
+                <field name="utm_campaign_id"/>
+                <field name="meta_campaign_id"/>
+                <field name="meta_campaign_name"/>
+                <field name="team_ids"/>
+                <filter name="automatic" string="Automatic" domain="[('routing_mode', '!=', 'manual')]"/>
+                <filter name="manual" string="Manual" domain="[('routing_mode', '=', 'manual')]"/>
+                <separator/>
+                <filter name="archived" string="Archived" domain="[('active', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_brokerage_meta_campaign_rule" model="ir.actions.act_window">
+        <field name="name">Campaign Routing Policies</field>
+        <field name="res_model">brokerage.meta.campaign.rule</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_brokerage_meta_campaign_rule_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Create a campaign routing policy.</p>
+            <p>Choose Manual, Global Round Robin, Dedicated Team or Shared Teams.</p>
+        </field>
+    </record>
+</odoo>

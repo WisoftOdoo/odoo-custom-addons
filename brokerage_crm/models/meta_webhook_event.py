@@ -335,6 +335,18 @@ class BrokerageMetaWebhookEvent(models.Model):
         )
         campaign = self._utm_record("utm.campaign", campaign_label)
         medium = self._utm_record("utm.medium", "Meta Lead Ads")
+        campaign_policy = self.env[
+            "brokerage.meta.campaign.rule"
+        ].sudo().policy_for_meta(
+            self.page_id,
+            mapped["campaign_id"],
+            mapped["form_id"],
+        )
+        assignment_type = (
+            "round_robin"
+            if campaign_policy and campaign_policy.routing_mode != "manual"
+            else "manual"
+        )
         customer_name = mapped["customer_name"]
         email = mapped["email"]
         phone = mapped["phone"]
@@ -364,7 +376,8 @@ class BrokerageMetaWebhookEvent(models.Model):
                 customer_name,
                 email,
                 phone,
-                "round_robin",
+                assignment_type,
+                campaign_policy=campaign_policy,
             )
             return existing, True, action
 
@@ -381,6 +394,9 @@ class BrokerageMetaWebhookEvent(models.Model):
             ),
             _("Meta Platform: %s") % (mapped["platform"] or "-"),
             _("Meta Submitted At: %s") % (mapped["created_time"] or "-"),
+            _("Assignment Mode: %s") % dict(
+                self.env["crm.lead"]._fields["assignment_type"].selection
+            ).get(assignment_type, assignment_type),
         ]
         contact_keys = {
             "full_name", "name", "first_name", "last_name", "email",
@@ -398,7 +414,7 @@ class BrokerageMetaWebhookEvent(models.Model):
                 _("Meta Form Answers:"),
                 *custom_answers,
             ])
-        lead = self.env["crm.lead"].sudo().create({
+        lead_values = {
             "name": "%s - %s" % (source.display_name, customer_name),
             "contact_name": customer_name,
             "phone": phone or False,
@@ -407,11 +423,14 @@ class BrokerageMetaWebhookEvent(models.Model):
             "source_id": source.id,
             "campaign_id": campaign.id or False,
             "medium_id": medium.id or False,
-            "assignment_type": "round_robin",
+            "assignment_type": assignment_type,
             "user_id": False,
             "team_id": False,
             "type": "opportunity",
-        })
+        }
+        if campaign_policy:
+            lead_values["campaign_routing_policy_id"] = campaign_policy.id
+        lead = self.env["crm.lead"].sudo().create(lead_values)
         return lead, False, False
 
     def action_retry_now(self):
