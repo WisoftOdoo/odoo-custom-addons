@@ -19,6 +19,15 @@ class CrmTeam(models.Model):
             "Not Interested Round Robin pools."
         ),
     )
+    brokerage_global_rr_eligible = fields.Boolean(
+        string="Global Campaign Round Robin",
+        tracking=True,
+        help=(
+            "Allow this team to receive leads from campaign policies using "
+            "Global Round Robin. Dedicated and Shared policies are controlled "
+            "only by their explicitly selected teams."
+        ),
+    )
     brokerage_working_calendar_id = fields.Many2one(
         comodel_name="resource.calendar",
         string="SLA Working Hours",

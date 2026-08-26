@@ -245,6 +245,37 @@ class CrmLead(models.Model):
         index=True,
     )
 
+    campaign_routing_policy_id = fields.Many2one(
+        "brokerage.meta.campaign.rule",
+        string="Campaign Routing Policy",
+        ondelete="set null",
+        copy=False,
+        tracking=True,
+        index=True,
+        help="Campaign-specific team pool and independent rotation used for this lead.",
+    )
+    campaign_routing_phase = fields.Selection(
+        [("primary", "Primary Pool"), ("fallback", "Fallback Pool")],
+        default="primary",
+        readonly=True,
+        copy=False,
+    )
+    campaign_routing_attempted_user_ids = fields.Many2many(
+        "res.users",
+        "brokerage_campaign_lead_attempted_user_rel",
+        "lead_id",
+        "user_id",
+        string="Campaign Salespeople Tried",
+        readonly=True,
+        copy=False,
+    )
+    campaign_routing_exhausted = fields.Boolean(
+        string="Campaign Routing Exhausted",
+        readonly=True,
+        copy=False,
+        index=True,
+    )
+
     assigned_datetime = fields.Datetime(
         string="Assigned Date/Time",
         tracking=True,
@@ -660,6 +691,7 @@ class CrmLead(models.Model):
     def create(self, vals_list):
         round_robin_flags = []
         explicit_team_flags = []
+        campaign_policy_ids = []
         manual_crm_creation = self.env.context.get("default_type") in (
             "lead", "opportunity"
         )
@@ -747,18 +779,52 @@ class CrmLead(models.Model):
                     "booking_documentation_completed_datetime",
                     fields.Datetime.now(),
                 )
-            round_robin_flags.append(vals.get("assignment_type") == "round_robin")
+            policy = self.env["brokerage.meta.campaign.rule"].browse(
+                vals.get("campaign_routing_policy_id")
+            ).exists()
+            if not policy and vals.get("campaign_id"):
+                policy = self.env[
+                    "brokerage.meta.campaign.rule"
+                ].policy_for_utm_campaign(
+                    self.env["utm.campaign"].browse(vals["campaign_id"]),
+                    self.env["res.company"].browse(vals.get("company_id")) or self.env.company,
+                )
+            if policy:
+                vals["campaign_routing_policy_id"] = policy.id
+                if vals.get("assignment_type") == "round_robin" and policy.routing_mode == "manual":
+                    vals["assignment_type"] = "manual"
+                    vals["user_id"] = False
+                    vals["team_id"] = False
+                    if not vals.get("stage_id"):
+                        new_stage = self.env["crm.stage"].sudo().search([
+                            ("brokerage_code", "=", "new"),
+                        ], order="sequence, id", limit=1)
+                        if not new_stage:
+                            raise ValidationError(_(
+                                "Configure a New Lead CRM stage before using a Manual campaign policy."
+                            ))
+                        vals["stage_id"] = new_stage.id
+            use_round_robin = vals.get("assignment_type") == "round_robin"
+            campaign_policy_ids.append(policy.id if use_round_robin and policy else False)
+            round_robin_flags.append(use_round_robin and not policy)
             explicit_team_flags.append(bool(vals.get("team_id")))
             if vals.get("user_id"):
                 vals.setdefault("assigned_datetime", fields.Datetime.now())
 
         leads = super().create(vals_list)
-        for lead, use_round_robin, has_explicit_team in zip(
+        for lead, use_round_robin, has_explicit_team, policy_id in zip(
             leads,
             round_robin_flags,
             explicit_team_flags,
+            campaign_policy_ids,
         ):
-            if use_round_robin:
+            if policy_id:
+                self.env["brokerage.meta.campaign.rule"].browse(
+                    policy_id
+                ).sudo().assign_initial(
+                    lead.sudo(), reason=_("Campaign Round Robin assignment")
+                )
+            elif use_round_robin:
                 lead.with_context(
                     force_global_round_robin=not has_explicit_team
                 )._apply_round_robin_assignment()
@@ -822,6 +888,23 @@ class CrmLead(models.Model):
             vals.get("assignment_type") == "round_robin"
             and not self.env.context.get("skip_round_robin")
         )
+        campaign_policies = {}
+        if trigger_round_robin:
+            for lead in self:
+                policy = lead.campaign_routing_policy_id
+                if not policy:
+                    campaign = self.env["utm.campaign"].browse(
+                        vals.get("campaign_id")
+                    ).exists() or lead.campaign_id
+                    policy = self.env[
+                        "brokerage.meta.campaign.rule"
+                    ].policy_for_utm_campaign(campaign, lead.company_id)
+                campaign_policies[lead.id] = policy
+            if any(policy.routing_mode == "manual" for policy in campaign_policies.values() if policy):
+                if len(self) != 1:
+                    raise ValidationError(_("Update campaign assignment mode one lead at a time."))
+                vals = dict(vals, assignment_type="manual")
+                trigger_round_robin = False
         if trigger_round_robin:
             # Let the requested type be stored, then assign atomically using the
             # configured queue. Any user_id supplied in the same write is ignored.
@@ -837,7 +920,19 @@ class CrmLead(models.Model):
 
         if trigger_round_robin:
             for lead in self:
-                lead._apply_round_robin_assignment()
+                policy = campaign_policies.get(lead.id)
+                if policy:
+                    lead.with_context(skip_round_robin=True).write({
+                        "campaign_routing_policy_id": policy.id,
+                        "campaign_routing_phase": "primary",
+                        "campaign_routing_attempted_user_ids": [(5, 0, 0)],
+                        "campaign_routing_exhausted": False,
+                    })
+                    policy.sudo().assign_initial(
+                        lead.sudo(), reason=_("Campaign Round Robin assignment")
+                    )
+                else:
+                    lead._apply_round_robin_assignment()
             return result
 
         if "user_id" in vals and not self.env.context.get("skip_assignment_history"):
@@ -1179,7 +1274,8 @@ class CrmLead(models.Model):
         return event_number
 
     def _brokerage_reopen_for_previous_owner(
-        self, source, campaign, medium, requested_assignment_type
+        self, source, campaign, medium, requested_assignment_type,
+        campaign_policy=False,
     ):
         self.ensure_one()
         previous_user = self.user_id
@@ -1209,6 +1305,13 @@ class CrmLead(models.Model):
             "team_id": previous_team.id,
             "not_interested_reassignment_done": False,
         }
+        if campaign_policy:
+            values.update({
+                "campaign_routing_policy_id": campaign_policy.id,
+                "campaign_routing_phase": "primary",
+                "campaign_routing_attempted_user_ids": [(6, 0, [previous_user.id])],
+                "campaign_routing_exhausted": False,
+            })
         values.update(
             self._prepare_brokerage_assignment_cycle_values(history_type, now)
         )
@@ -1249,6 +1352,7 @@ class CrmLead(models.Model):
         incoming_email,
         incoming_phone,
         requested_assignment_type,
+        campaign_policy=False,
     ):
         """Apply the approved active/closed duplicate-enquiry workflows."""
         self.ensure_one()
@@ -1278,6 +1382,7 @@ class CrmLead(models.Model):
                     campaign,
                     medium,
                     requested_assignment_type,
+                    campaign_policy=campaign_policy,
                 )
             elif requested_assignment_type == "round_robin":
                 lead._clear_open_brokerage_sla_activities()
@@ -1292,16 +1397,20 @@ class CrmLead(models.Model):
                     "campaign_id": campaign.id or False,
                     "medium_id": medium.id or False,
                     "not_interested_reassignment_done": False,
+                    "campaign_routing_policy_id": campaign_policy.id if campaign_policy else False,
+                    "campaign_routing_phase": "primary",
+                    "campaign_routing_attempted_user_ids": [(5, 0, 0)],
+                    "campaign_routing_exhausted": False,
                 })
-                self.env[
-                    "brokerage.crm.round.robin"
-                ].sudo().assign_lead_by_normal_sequence(
-                    lead,
-                    reason=_(
-                        "Repeat enquiry reassigned because the previous "
-                        "salesperson is unavailable"
-                    ),
+                reason = _(
+                    "Repeat enquiry reassigned because the previous salesperson is unavailable"
                 )
+                if campaign_policy:
+                    campaign_policy.sudo().assign_initial(lead, reason=reason)
+                else:
+                    self.env[
+                        "brokerage.crm.round.robin"
+                    ].sudo().assign_lead_by_normal_sequence(lead, reason=reason)
                 action = "reopened_round_robin"
             else:
                 new_stage = self.env["crm.stage"].sudo().search([
@@ -1826,7 +1935,11 @@ class CrmLead(models.Model):
                         "Automatic reassignment after no contact attempt or qualifying update"
                     )
                 )
-                if self.team_id.brokerage_solo_campaign:
+                if self.campaign_routing_policy_id:
+                    reassigned_user = self.campaign_routing_policy_id.sudo().reassign_after_sla(
+                        self.sudo(), reason=reason,
+                    )
+                elif self.team_id.brokerage_solo_campaign:
                     reassigned_user = self.env[
                         "crm.team"
                     ].assign_brokerage_solo_cross_team(

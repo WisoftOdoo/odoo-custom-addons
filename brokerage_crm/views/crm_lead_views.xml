@@ -406,6 +406,18 @@
 
                             <field name="assignment_type"
                                    readonly="1"/>
+                            <field name="campaign_routing_policy_id"
+                                   readonly="1"/>
+                            <field name="campaign_routing_phase"
+                                   readonly="1"
+                                   invisible="not campaign_routing_policy_id"/>
+                            <field name="campaign_routing_exhausted"
+                                   readonly="1"
+                                   invisible="not campaign_routing_policy_id"/>
+                            <field name="campaign_routing_attempted_user_ids"
+                                   widget="many2many_tags"
+                                   readonly="1"
+                                   invisible="not campaign_routing_policy_id"/>
 
                         </group>
 

@@ -13,6 +13,7 @@
             </xpath>
             <xpath expr="//field[@name='user_id']" position="after">
                 <field name="brokerage_solo_campaign"/>
+                <field name="brokerage_global_rr_eligible"/>
                 <field name="brokerage_working_calendar_id"
                        options="{'no_create': True}"
                        placeholder="Use company working hours"/>
@@ -56,6 +57,7 @@
             </xpath>
             <xpath expr="//field[@name='user_id']" position="after">
                 <field name="brokerage_solo_campaign" optional="show"/>
+                <field name="brokerage_global_rr_eligible" optional="show"/>
                 <field name="brokerage_working_calendar_id"
                        optional="hide"/>
             </xpath>
@@ -73,6 +75,7 @@
             </xpath>
             <xpath expr="//field[@name='user_id']" position="after">
                 <field name="brokerage_solo_campaign"/>
+                <field name="brokerage_global_rr_eligible"/>
             </xpath>
             <xpath expr="//filter[@name='team_leader']" position="after">
                 <filter name="brokerage_solo_campaign"
