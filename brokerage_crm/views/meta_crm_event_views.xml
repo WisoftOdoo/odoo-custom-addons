@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <record id="view_brokerage_meta_crm_event_list" model="ir.ui.view">
+        <field name="name">brokerage.meta.crm.event.list</field>
+        <field name="model">brokerage.meta.crm.event</field>
+        <field name="arch" type="xml">
+            <list string="Meta CRM Outbound Event Log"
+                  create="0" edit="0" delete="0"
+                  decoration-success="state == 'sent'"
+                  decoration-danger="state == 'failed'"
+                  decoration-muted="state == 'skipped'"
+                  decoration-info="state in ('pending', 'sending')">
+                <button name="action_retry_now"
+                        type="object"
+                        string="Retry"
+                        icon="fa-refresh"
+                        groups="brokerage_crm.group_brokerage_sales_manager"
+                        invisible="state not in ('failed', 'skipped')"/>
+                <field name="event_time"/>
+                <field name="event_name"/>
+                <field name="lead_id"/>
+                <field name="meta_lead_id" optional="show"/>
+                <field name="stage_id" optional="show"/>
+                <field name="state" widget="badge"/>
+                <field name="attempt_count"/>
+                <field name="http_status" optional="show"/>
+                <field name="next_attempt_at" optional="show"/>
+                <field name="sent_at" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_brokerage_meta_crm_event_form" model="ir.ui.view">
+        <field name="name">brokerage.meta.crm.event.form</field>
+        <field name="model">brokerage.meta.crm.event</field>
+        <field name="arch" type="xml">
+            <form string="Meta CRM Outbound Event" create="0" edit="0" delete="0">
+                <header>
+                    <button name="action_retry_now"
+                            type="object"
+                            string="Retry Now"
+                            class="btn-primary"
+                            groups="brokerage_crm.group_brokerage_sales_manager"
+                            invisible="state not in ('failed', 'skipped')"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="lead_id"/>
+                            <field name="webhook_event_id"/>
+                            <field name="meta_lead_id"/>
+                            <field name="event_name"/>
+                            <field name="event_id"/>
+                            <field name="stage_id"/>
+                        </group>
+                        <group>
+                            <field name="state" widget="badge"/>
+                            <field name="event_time"/>
+                            <field name="attempt_count"/>
+                            <field name="last_attempt_at"/>
+                            <field name="next_attempt_at"/>
+                            <field name="sent_at"/>
+                            <field name="http_status"/>
+                        </group>
+                    </group>
+                    <group string="Delivery Error" invisible="not last_error">
+                        <field name="last_error" nolabel="1"/>
+                    </group>
+                    <notebook groups="base.group_system">
+                        <page string="Request Payload">
+                            <field name="request_payload" nolabel="1"/>
+                        </page>
+                        <page string="Response Payload">
+                            <field name="response_payload" nolabel="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_brokerage_meta_crm_event_search" model="ir.ui.view">
+        <field name="name">brokerage.meta.crm.event.search</field>
+        <field name="model">brokerage.meta.crm.event</field>
+        <field name="arch" type="xml">
+            <search string="Meta CRM Outbound Event Log">
+                <field name="lead_id"/>
+                <field name="meta_lead_id"/>
+                <field name="event_name"/>
+                <filter name="pending" string="Pending"
+                        domain="[('state', 'in', ('pending', 'sending'))]"/>
+                <filter name="failed" string="Failed"
+                        domain="[('state', '=', 'failed')]"/>
+                <filter name="sent" string="Sent"
+                        domain="[('state', '=', 'sent')]"/>
+                <group>
+                    <filter name="group_state" string="State"
+                            context="{'group_by': 'state'}"/>
+                    <filter name="group_event" string="Event"
+                            context="{'group_by': 'event_name'}"/>
+                    <filter name="group_day" string="Event Date"
+                            context="{'group_by': 'event_time:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_brokerage_meta_crm_event" model="ir.actions.act_window">
+        <field name="name">Meta CRM Outbound Event Log</field>
+        <field name="res_model">brokerage.meta.crm.event</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_brokerage_meta_crm_event_search"/>
+        <field name="context">{}</field>
+    </record>
+
+</odoo>

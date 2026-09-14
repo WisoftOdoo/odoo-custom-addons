@@ -60,6 +60,49 @@ class ResConfigSettings(models.TransientModel):
         default=5,
     )
 
+    brokerage_meta_crm_feedback_enabled = fields.Boolean(
+        string="Enable Meta CRM Feedback",
+        config_parameter="brokerage_crm.meta_crm_feedback_enabled",
+    )
+    brokerage_meta_crm_dataset_id = fields.Char(
+        string="Meta Dataset ID",
+        config_parameter="brokerage_crm.meta_crm_dataset_id",
+    )
+    brokerage_meta_crm_access_token = fields.Char(
+        string="Conversions API Access Token",
+        config_parameter="brokerage_crm.meta_crm_access_token",
+        copy=False,
+    )
+    brokerage_meta_crm_graph_version = fields.Char(
+        string="CRM Graph API Version",
+        config_parameter="brokerage_crm.meta_crm_graph_version",
+        default="v26.0",
+    )
+    brokerage_meta_crm_name = fields.Char(
+        string="CRM Event Source Name",
+        config_parameter="brokerage_crm.meta_crm_name",
+        default="Miraj Crest Realty Odoo CRM",
+    )
+    brokerage_meta_crm_test_event_code = fields.Char(
+        string="Test Event Code",
+        config_parameter="brokerage_crm.meta_crm_test_event_code",
+        copy=False,
+        help=(
+            "While populated, outbound events appear under Meta Events "
+            "Manager Test Events. Clear it before production delivery."
+        ),
+    )
+    brokerage_meta_crm_request_timeout = fields.Integer(
+        string="CRM API Response Timeout",
+        config_parameter="brokerage_crm.meta_crm_request_timeout",
+        default=15,
+    )
+    brokerage_meta_crm_max_attempts = fields.Integer(
+        string="Maximum CRM Delivery Attempts",
+        config_parameter="brokerage_crm.meta_crm_max_attempts",
+        default=5,
+    )
+
     brokerage_telephony_provider_id = fields.Many2one(
         related="company_id.brokerage_telephony_provider_id",
         readonly=False,
@@ -313,11 +356,43 @@ class ResConfigSettings(models.TransientModel):
                 "Maximum Meta processing attempts must be positive."
             ))
 
+    def _validate_brokerage_meta_crm_settings(self):
+        self.ensure_one()
+        if not self.brokerage_meta_crm_feedback_enabled:
+            return
+        dataset_id = (self.brokerage_meta_crm_dataset_id or "").strip()
+        if not dataset_id.isdigit():
+            raise ValidationError(_(
+                "The Meta CRM Dataset ID must contain digits only."
+            ))
+        if not (self.brokerage_meta_crm_access_token or "").strip():
+            raise ValidationError(_(
+                "Enter the Meta Conversions API access token."
+            ))
+        if not re.fullmatch(
+            r"v\d+\.\d+",
+            (self.brokerage_meta_crm_graph_version or "").strip(),
+        ):
+            raise ValidationError(_(
+                "The CRM Graph API version must use a value such as v26.0."
+            ))
+        if not (self.brokerage_meta_crm_name or "").strip():
+            raise ValidationError(_("Enter the CRM event source name."))
+        if self.brokerage_meta_crm_request_timeout <= 0:
+            raise ValidationError(_(
+                "The Meta CRM API response timeout must be positive."
+            ))
+        if self.brokerage_meta_crm_max_attempts <= 0:
+            raise ValidationError(_(
+                "Maximum Meta CRM delivery attempts must be positive."
+            ))
+
     def set_values(self):
         for settings in self:
             settings._validate_brokerage_sla_timings()
             settings._validate_brokerage_lead_quality_aging()
             settings._validate_brokerage_meta_settings()
+            settings._validate_brokerage_meta_crm_settings()
             if not settings.brokerage_ultramsg_enabled:
                 continue
             instance_id = (
