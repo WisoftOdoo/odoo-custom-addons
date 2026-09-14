@@ -350,16 +350,10 @@ class CrmLeadMetaFeedback(models.Model):
     _inherit = "crm.lead"
 
     _META_STAGE_EVENTS = {
-        "new": "Lead",
-        "assigned": "Assigned",
-        "contact_attempted": "ContactAttempted",
-        "contacted": "Contact",
-        "meeting_scheduled": "Schedule",
-        "meeting_completed": "MeetingCompleted",
-        "forecast": "Forecast",
-        "hot": "QualifiedLead",
-        "not_interested": "UnqualifiedLead",
-        "won": "Purchase",
+        "new": "CREATED",
+        "hot": "QUALIFIED",
+        "not_interested": "UNQUALIFIED",
+        "won": "QUALIFIED",
     }
 
     def _brokerage_meta_event_for_stage(self):
@@ -369,8 +363,7 @@ class CrmLeadMetaFeedback(models.Model):
         event_name = self._META_STAGE_EVENTS.get(code)
         if event_name:
             return event_name
-        words = re.findall(r"[A-Za-z0-9]+", stage.display_name or "")
-        return "".join(word[:1].upper() + word[1:] for word in words)[:40]
+        return False
 
     def write(self, vals):
         tracked = bool(
@@ -403,11 +396,11 @@ class CrmLeadMetaFeedback(models.Model):
                 and bool(lead.lost_reason_id)
             )
             if became_lost:
-                event_name = "LostLead"
+                event_name = "UNQUALIFIED"
             elif lead.stage_id.id != old["stage_id"]:
                 event_name = lead._brokerage_meta_event_for_stage()
             elif old["probability"] != 100 and lead.probability == 100:
-                event_name = "Purchase"
+                event_name = "QUALIFIED"
             else:
                 event_name = False
             if event_name:
@@ -422,7 +415,7 @@ class MetaWebhookEventFeedback(models.Model):
         lead = super()._process_event()
         self.env["brokerage.meta.crm.event"].sudo().enqueue_for_lead(
             lead.sudo(),
-            "Lead",
+            "CREATED",
             webhook_event=self,
             event_time=self.processed_at or fields.Datetime.now(),
         )
