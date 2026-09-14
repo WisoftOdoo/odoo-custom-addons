@@ -27,7 +27,9 @@ class TestMetaCrmEvent(TransactionCase):
         parameters.set_param(
             "brokerage_crm.meta_crm_test_event_code", "TEST12345"
         )
-        cls.new_stage, cls.contacted_stage = cls.env["crm.stage"].create([
+        cls.new_stage, cls.contacted_stage, cls.hot_stage = cls.env[
+            "crm.stage"
+        ].create([
             {
                 "name": "Meta Feedback New",
                 "brokerage_code": "new",
@@ -37,6 +39,11 @@ class TestMetaCrmEvent(TransactionCase):
                 "name": "Meta Feedback Contacted",
                 "brokerage_code": "contacted",
                 "sequence": -490,
+            },
+            {
+                "name": "Meta Feedback Hot",
+                "brokerage_code": "hot",
+                "sequence": -480,
             },
         ])
 
@@ -66,14 +73,21 @@ class TestMetaCrmEvent(TransactionCase):
         lead.with_context(brokerage_workflow_action=True).write({
             "stage_id": self.contacted_stage.id,
         })
+        self.assertFalse(self.env["brokerage.meta.crm.event"].search([
+            ("lead_id", "=", lead.id),
+        ]))
+
+        lead.with_context(brokerage_workflow_action=True).write({
+            "stage_id": self.hot_stage.id,
+        })
         event = self.env["brokerage.meta.crm.event"].search([
             ("lead_id", "=", lead.id),
         ])
         self.assertEqual(len(event), 1)
-        self.assertEqual(event.event_name, "Contact")
+        self.assertEqual(event.event_name, "QUALIFIED")
 
         lead.with_context(brokerage_workflow_action=True).write({
-            "stage_id": self.contacted_stage.id,
+            "stage_id": self.hot_stage.id,
         })
         self.assertEqual(
             self.env["brokerage.meta.crm.event"].search_count([
@@ -101,13 +115,13 @@ class TestMetaCrmEvent(TransactionCase):
         lead, webhook = self._lead_and_webhook("1002")
         event = self.env["brokerage.meta.crm.event"].enqueue_for_lead(
             lead,
-            "Lead",
+            "CREATED",
             webhook_event=webhook,
             event_time="2026-09-14 10:05:00",
         )
         payload = event._build_payload()
         item = payload["data"][0]
-        self.assertEqual(item["event_name"], "Lead")
+        self.assertEqual(item["event_name"], "CREATED")
         self.assertEqual(item["action_source"], "system_generated")
         self.assertEqual(item["user_data"]["lead_id"], "META-FEEDBACK-1002")
         self.assertEqual(
@@ -127,7 +141,7 @@ class TestMetaCrmEvent(TransactionCase):
 
         repeated = self.env["brokerage.meta.crm.event"].enqueue_for_lead(
             lead,
-            "Lead",
+            "CREATED",
             webhook_event=webhook,
         )
         self.assertEqual(repeated, event)
@@ -136,7 +150,7 @@ class TestMetaCrmEvent(TransactionCase):
         lead, webhook = self._lead_and_webhook("1003")
         event = self.env["brokerage.meta.crm.event"].enqueue_for_lead(
             lead,
-            "QualifiedLead",
+            "QUALIFIED",
             webhook_event=webhook,
         )
         response = Mock()
@@ -170,4 +184,4 @@ class TestMetaCrmEvent(TransactionCase):
         event = self.env["brokerage.meta.crm.event"].search([
             ("lead_id", "=", lead.id),
         ])
-        self.assertEqual(event.event_name, "LostLead")
+        self.assertEqual(event.event_name, "UNQUALIFIED")
