@@ -43,6 +43,8 @@ access_whatsapp_notification_manager,brokerage whatsapp notification manager,mod
 access_email_notification_manager,brokerage email notification manager,model_brokerage_crm_email_notification,brokerage_crm.group_brokerage_sales_manager,1,0,0,0
 access_meta_webhook_event_manager,brokerage meta webhook event manager,model_brokerage_meta_webhook_event,brokerage_crm.group_brokerage_sales_manager,1,0,0,0
 access_meta_webhook_event_admin,brokerage meta webhook event admin,model_brokerage_meta_webhook_event,base.group_system,1,1,1,1
+access_meta_crm_event_manager,brokerage meta crm event manager,model_brokerage_meta_crm_event,brokerage_crm.group_brokerage_sales_manager,1,0,0,0
+access_meta_crm_event_admin,brokerage meta crm event admin,model_brokerage_meta_crm_event,base.group_system,1,1,1,1
 access_meta_campaign_rule_manager,brokerage meta campaign rule manager,model_brokerage_meta_campaign_rule,brokerage_crm.group_brokerage_sales_manager,1,1,1,1
 access_meta_campaign_rule_admin,brokerage meta campaign rule admin,model_brokerage_meta_campaign_rule,base.group_system,1,1,1,1
 access_meta_campaign_rule_user,brokerage campaign policy user,model_brokerage_meta_campaign_rule,brokerage_crm.group_brokerage_crm_user,1,0,0,0

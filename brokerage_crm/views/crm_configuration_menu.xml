@@ -143,6 +143,13 @@
               sequence="47"
               groups="brokerage_crm.group_brokerage_sales_manager"/>
 
+    <menuitem id="menu_brokerage_meta_crm_event_log"
+              name="Meta CRM Outbound Event Log"
+              parent="menu_brokerage_crm_configuration"
+              action="action_brokerage_meta_crm_event"
+              sequence="48"
+              groups="brokerage_crm.group_brokerage_sales_manager"/>
+
     <menuitem id="menu_brokerage_meta_campaign_rules"
               name="Campaign Routing Policies"
               parent="menu_brokerage_crm_configuration"
