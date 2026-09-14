@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <record id="res_config_settings_view_form_brokerage_meta_crm"
+            model="ir.ui.view">
+        <field name="name">res.config.settings.brokerage.meta.crm</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="crm.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//app[@name='crm']" position="inside">
+                <block title="Meta CRM Conversion Feedback"
+                       name="brokerage_meta_crm_feedback_settings"
+                       groups="base.group_system">
+                    <setting id="brokerage_meta_crm_feedback_enabled"
+                             string="Send CRM Funnel Events to Meta"
+                             help="Queue Meta-originated lead stage changes and send them through Meta Conversions API for CRM. This is independent from inbound Meta Lead Ads retrieval.">
+                        <field name="brokerage_meta_crm_feedback_enabled"/>
+                        <div class="content-group mt16"
+                             invisible="not brokerage_meta_crm_feedback_enabled">
+                            <div class="row mt8">
+                                <label for="brokerage_meta_crm_dataset_id"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_meta_crm_dataset_id"
+                                       class="oe_inline"
+                                       placeholder="988258467125920"
+                                       required="brokerage_meta_crm_feedback_enabled"/>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_meta_crm_access_token"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_meta_crm_access_token"
+                                       class="oe_inline"
+                                       password="True"
+                                       required="brokerage_meta_crm_feedback_enabled"/>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_meta_crm_graph_version"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_meta_crm_graph_version"
+                                       class="oe_inline"
+                                       placeholder="v26.0"
+                                       required="brokerage_meta_crm_feedback_enabled"/>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_meta_crm_name"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_meta_crm_name"
+                                       class="oe_inline"
+                                       required="brokerage_meta_crm_feedback_enabled"/>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_meta_crm_test_event_code"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_meta_crm_test_event_code"
+                                       class="oe_inline"
+                                       password="True"
+                                       placeholder="TEST12345"/>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_meta_crm_request_timeout"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_meta_crm_request_timeout"
+                                       class="oe_inline"
+                                       required="brokerage_meta_crm_feedback_enabled"/>
+                                <span class="ms-2">seconds</span>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_meta_crm_max_attempts"
+                                       class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_meta_crm_max_attempts"
+                                       class="oe_inline"
+                                       required="brokerage_meta_crm_feedback_enabled"/>
+                            </div>
+                            <div class="text-muted mt8">
+                                Only leads received through the existing Meta
+                                webhook are eligible. Outbound requests are
+                                queued and retried separately, so a Meta outage
+                                cannot interrupt lead creation, assignment, SLA
+                                or stage changes. Keep the Test Event Code while
+                                validating, then clear it for production.
+                            </div>
+                        </div>
+                    </setting>
+                </block>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
