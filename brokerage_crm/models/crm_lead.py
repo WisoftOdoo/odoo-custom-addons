@@ -709,6 +709,7 @@ class CrmLead(models.Model):
             "lead", "opportunity"
         )
         batch_contact_keys = set()
+        imported_created_dates = []
         for vals in vals_list:
             imported_created_on = vals.get("brokerage_import_created_on")
             if (
@@ -723,6 +724,11 @@ class CrmLead(models.Model):
                 vals.pop("create_date", None)
                 if not import_file or vals.get("assignment_type") != "manual":
                     vals.pop("brokerage_import_created_on", None)
+            imported_created_dates.append(
+                imported_created_on
+                if import_file and vals.get("assignment_type") == "manual"
+                else False
+            )
             # CRM screens and imports opened from CRM carry default_type.
             # Validate those human-facing creation routes on the server too,
             # while leaving low-level internal Odoo jobs able to create an
@@ -838,6 +844,10 @@ class CrmLead(models.Model):
                 vals.setdefault("assigned_datetime", fields.Datetime.now())
 
         leads = super().create(vals_list)
+        if import_file:
+            self._brokerage_apply_imported_created_dates(
+                zip(leads, imported_created_dates)
+            )
         for lead, use_round_robin, has_explicit_team, policy_id in zip(
             leads,
             round_robin_flags,
@@ -869,6 +879,7 @@ class CrmLead(models.Model):
         # apply an imported historical date only to rows that remain Manual.
         imported_create_date = False
         import_file = self.env.context.get("import_file")
+        imported_assignment_type = vals.get("assignment_type")
         if import_file and (
             vals.get("brokerage_import_created_on") or vals.get("create_date")
         ):
@@ -878,6 +889,8 @@ class CrmLead(models.Model):
             vals = dict(vals)
             vals.pop("create_date", None)
             vals.pop("brokerage_import_created_on", None)
+            if imported_assignment_type not in (None, "manual"):
+                imported_create_date = False
         if "kyc_status" in vals:
             vals = dict(vals)
             if vals.get("kyc_status") == "verified":
@@ -957,12 +970,9 @@ class CrmLead(models.Model):
             manual_leads = self.filtered(
                 lambda lead: lead.assignment_type == "manual"
             )
-            if manual_leads:
-                # Call the parent implementation directly so this controlled
-                # log-access update cannot recurse through the workflow hooks.
-                super(CrmLead, manual_leads).write({
-                    "create_date": imported_create_date,
-                })
+            self._brokerage_apply_imported_created_dates(
+                ((lead, imported_create_date) for lead in manual_leads)
+            )
 
         if stage and self._stage_code(stage) in (
             "contact_attempted", "contacted", "not_interested"
@@ -1005,6 +1015,29 @@ class CrmLead(models.Model):
                             before_snapshot=old_snapshot,
                         )
         return result
+
+    def _brokerage_apply_imported_created_dates(self, lead_dates):
+        """Set historical audit dates for the explicitly guarded import path.
+
+        Odoo deliberately strips ``create_date`` from ORM create/write values
+        because it is a log-access field.  This helper is therefore the only
+        controlled database update for it, and callers invoke it only from an
+        Excel import context after confirming the lead is Manual.
+        """
+        updates = [
+            (created_on, lead.id)
+            for lead, created_on in lead_dates
+            if lead and lead.id and lead.assignment_type == "manual" and created_on
+        ]
+        for created_on, lead_id in updates:
+            self.env.cr.execute(
+                "UPDATE crm_lead SET create_date = %s WHERE id = %s",
+                (created_on, lead_id),
+            )
+        if updates:
+            self.browse([lead_id for _created_on, lead_id in updates]).invalidate_recordset(
+                ["create_date"]
+            )
 
     def _move_new_lead_to_assigned_if_owned(self):
         """Move only salesperson-owned New Leads into Assigned.
