@@ -14,6 +14,15 @@ _logger = logging.getLogger(__name__)
 class CrmLead(models.Model):
     _inherit = "crm.lead"
 
+    brokerage_import_created_on = fields.Datetime(
+        string="Imported Created On",
+        copy=False,
+        help=(
+            "Import-only source date for historical manual leads. It is copied "
+            "to Odoo's Created on audit field only during an Excel import."
+        ),
+    )
+
     brokerage_deduplication_key = fields.Char(
         string="API Duplicate Key",
         compute="_compute_brokerage_deduplication_key",
@@ -689,9 +698,9 @@ class CrmLead(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        # ``create_date`` is accepted from Excel only for explicitly manual
-        # imports.  This keeps the historical-date convenience isolated from
-        # Meta/API creation and all normal CRM writes.
+        # The standard ``create_date`` audit field is hidden by Odoo's import
+        # mapper because it is readonly.  ``brokerage_import_created_on`` is
+        # the writable Excel column; it is copied only for manual imports.
         import_file = self.env.context.get("import_file")
         round_robin_flags = []
         explicit_team_flags = []
@@ -701,12 +710,19 @@ class CrmLead(models.Model):
         )
         batch_contact_keys = set()
         for vals in vals_list:
-            if vals.get("create_date") and not (
-                import_file and vals.get("assignment_type") == "manual"
+            imported_created_on = vals.get("brokerage_import_created_on")
+            if (
+                import_file
+                and vals.get("assignment_type") == "manual"
+                and imported_created_on
             ):
+                vals["create_date"] = imported_created_on
+            else:
                 # Never allow an API, Meta, round-robin, or ordinary create to
                 # override Odoo's real creation timestamp.
                 vals.pop("create_date", None)
+                if not import_file or vals.get("assignment_type") != "manual":
+                    vals.pop("brokerage_import_created_on", None)
             # CRM screens and imports opened from CRM carry default_type.
             # Validate those human-facing creation routes on the server too,
             # while leaving low-level internal Odoo jobs able to create an
@@ -853,10 +869,15 @@ class CrmLead(models.Model):
         # apply an imported historical date only to rows that remain Manual.
         imported_create_date = False
         import_file = self.env.context.get("import_file")
-        if import_file and vals.get("create_date"):
-            imported_create_date = vals["create_date"]
+        if import_file and (
+            vals.get("brokerage_import_created_on") or vals.get("create_date")
+        ):
+            imported_create_date = (
+                vals.get("brokerage_import_created_on") or vals.get("create_date")
+            )
             vals = dict(vals)
             vals.pop("create_date", None)
+            vals.pop("brokerage_import_created_on", None)
         if "kyc_status" in vals:
             vals = dict(vals)
             if vals.get("kyc_status") == "verified":
