@@ -689,6 +689,10 @@ class CrmLead(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        # ``create_date`` is accepted from Excel only for explicitly manual
+        # imports.  This keeps the historical-date convenience isolated from
+        # Meta/API creation and all normal CRM writes.
+        import_file = self.env.context.get("import_file")
         round_robin_flags = []
         explicit_team_flags = []
         campaign_policy_ids = []
@@ -697,6 +701,12 @@ class CrmLead(models.Model):
         )
         batch_contact_keys = set()
         for vals in vals_list:
+            if vals.get("create_date") and not (
+                import_file and vals.get("assignment_type") == "manual"
+            ):
+                # Never allow an API, Meta, round-robin, or ordinary create to
+                # override Odoo's real creation timestamp.
+                vals.pop("create_date", None)
             # CRM screens and imports opened from CRM carry default_type.
             # Validate those human-facing creation routes on the server too,
             # while leaving low-level internal Odoo jobs able to create an
@@ -838,6 +848,15 @@ class CrmLead(models.Model):
         return leads
 
     def write(self, vals):
+        # Odoo's import wizard may update an existing lead during a re-import.
+        # Keep the standard audit field untouched for every other write, and
+        # apply an imported historical date only to rows that remain Manual.
+        imported_create_date = False
+        import_file = self.env.context.get("import_file")
+        if import_file and vals.get("create_date"):
+            imported_create_date = vals["create_date"]
+            vals = dict(vals)
+            vals.pop("create_date", None)
         if "kyc_status" in vals:
             vals = dict(vals)
             if vals.get("kyc_status") == "verified":
@@ -912,6 +931,17 @@ class CrmLead(models.Model):
             vals.pop("user_id", None)
 
         result = super().write(vals)
+
+        if imported_create_date:
+            manual_leads = self.filtered(
+                lambda lead: lead.assignment_type == "manual"
+            )
+            if manual_leads:
+                # Call the parent implementation directly so this controlled
+                # log-access update cannot recurse through the workflow hooks.
+                super(CrmLead, manual_leads).write({
+                    "create_date": imported_create_date,
+                })
 
         if stage and self._stage_code(stage) in (
             "contact_attempted", "contacted", "not_interested"
