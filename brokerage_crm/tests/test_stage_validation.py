@@ -280,6 +280,55 @@ class TestLeadValidation(TransactionCase):
 
         self.assertEqual(lead.stage_id, forecast_stage)
 
+    def test_agent_can_move_backward_to_contact_attempted(self):
+        agent = self.env["res.users"].create({
+            "name": "Contact Attempt Backward Agent",
+            "login": "contact.attempt.backward.agent@test.invalid",
+            "group_ids": [(6, 0, [
+                self.env.ref(
+                    "brokerage_crm.group_brokerage_crm_user"
+                ).id,
+            ])],
+        })
+        contact_attempted_stage, forecast_stage = self.env["crm.stage"].create([
+            {
+                "name": "Backward Contact Attempted",
+                "sequence": 30,
+                "brokerage_code": "contact_attempted",
+            },
+            {
+                "name": "Backward Forecast With Floor",
+                "sequence": 70,
+                "brokerage_code": "forecast",
+            },
+        ])
+        status = self.env["brokerage.crm.lead.status"].create({
+            "name": "Backward No Answer",
+            "code": "backward_no_answer",
+            "is_contact_attempt": True,
+        })
+        lead = self.env["crm.lead"].create({
+            "name": "Backward Contact Attempt Allowed",
+            "user_id": agent.id,
+            "stage_id": forecast_stage.id,
+            "assigned_datetime": fields.Datetime.now() - timedelta(hours=2),
+        })
+        lead.with_context(
+            skip_round_robin=True,
+            skip_assignment_history=True,
+        ).write({"assignment_type": "round_robin", "sla_cycle_active": False})
+        self.env["brokerage.crm.contact.attempt"].create({
+            "lead_id": lead.id,
+            "user_id": agent.id,
+            "attempt_datetime": fields.Datetime.now() - timedelta(hours=1),
+            "method": "call",
+            "status_id": status.id,
+        })
+
+        lead.with_user(agent).write({"stage_id": contact_attempted_stage.id})
+
+        self.assertEqual(lead.stage_id, contact_attempted_stage)
+
     def test_manager_stage_correction_does_not_restart_sla(self):
         manager = self.env["res.users"].create({
             "name": "Stage Correction Manager",
