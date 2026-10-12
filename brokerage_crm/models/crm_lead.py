@@ -209,6 +209,24 @@ class CrmLead(models.Model):
         index=True,
     )
 
+    not_interested_reason = fields.Text(
+        string="Not Interested Reason",
+        tracking=True,
+        copy=False,
+        help="Reason entered when the Lead Status is set to Not Interested.",
+    )
+
+    is_not_interested_status = fields.Boolean(
+        compute="_compute_is_not_interested_status",
+    )
+
+    @api.depends("lead_status_id")
+    def _compute_is_not_interested_status(self):
+        for lead in self:
+            lead.is_not_interested_status = (
+                lead.lead_status_id.code == "not_interested"
+            )
+
     lead_quality_id = fields.Many2one(
         comodel_name="brokerage.crm.lead.quality",
         string="Lead Quality",
@@ -874,6 +892,44 @@ class CrmLead(models.Model):
         return leads
 
     def write(self, vals):
+        # A direct status change from the lead form to Not Interested must
+        # include a reason and move the lead to the matching CRM stage. Keep
+        # workflow actions, imports, and all other statuses unchanged.
+        direct_not_interested_reason = False
+        if (
+            not self.env.context.get("brokerage_workflow_action")
+            and not self.env.context.get("import_file")
+            and len(self) == 1
+            and vals.get("lead_status_id")
+            and "stage_id" not in vals
+        ):
+            selected_status = self.env[
+                "brokerage.crm.lead.status"
+            ].browse(vals["lead_status_id"]).exists()
+            if selected_status.code == "not_interested":
+                reason = vals.get(
+                    "not_interested_reason",
+                    self.not_interested_reason,
+                )
+                if not (reason or "").strip():
+                    raise ValidationError(_(
+                        "Enter a reason before setting the Lead Status to "
+                        "Not Interested."
+                    ))
+                target_stage = self._find_brokerage_stage("not_interested")
+                if not target_stage:
+                    raise ValidationError(_(
+                        "Configure a Not Interested CRM stage before using "
+                        "this lead status."
+                    ))
+                direct_not_interested_reason = (reason or "").strip()
+                vals = dict(
+                    vals,
+                    stage_id=target_stage.id,
+                    last_status_update=fields.Datetime.now(),
+                    last_meaningful_update=fields.Datetime.now(),
+                )
+
         # Odoo's import wizard may update an existing lead during a re-import.
         # Keep the standard audit field untouched for every other write, and
         # apply an imported historical date only to rows that remain Manual.
@@ -965,6 +1021,35 @@ class CrmLead(models.Model):
             vals.pop("user_id", None)
 
         result = super().write(vals)
+
+        # Reuse the existing Not Interested reassignment paths after the
+        # status/stage write. The reassignment methods reset the new cycle's
+        # status to Assigned when a recipient is found, exactly as the contact
+        # attempt workflow does. No contact-attempt record is created here.
+        if direct_not_interested_reason:
+            lead = self
+            reassigned_user = False
+            if lead.campaign_routing_policy_id:
+                reassigned_user = lead.campaign_routing_policy_id.sudo(
+                ).reassign_not_interested_once(
+                    lead.sudo(),
+                    reason=direct_not_interested_reason,
+                )
+            elif not lead.team_id.brokerage_solo_campaign:
+                try:
+                    reassigned_user = self.env[
+                        "brokerage.crm.round.robin"
+                    ].assign_lead_not_interested_once(
+                        lead,
+                        reason=direct_not_interested_reason,
+                    )
+                except ValidationError as error:
+                    # No eligible recipient is a valid terminal outcome for
+                    # the direct status path: the lead already has its
+                    # Not Interested stage. Preserve other configuration
+                    # errors so they remain visible to the user.
+                    if "No eligible salesperson is available" not in str(error):
+                        raise
 
         if imported_create_date:
             manual_leads = self.filtered(
