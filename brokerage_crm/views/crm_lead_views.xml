@@ -139,6 +139,13 @@
 
                 <field name="lead_status_id"/>
 
+                <field name="is_not_interested_status" invisible="1"/>
+
+                <field name="not_interested_reason"
+                       invisible="not is_not_interested_status"
+                       required="is_not_interested_status"
+                       placeholder="Enter why the lead is not interested"/>
+
                 <field name="lead_quality_id"/>
 
             </xpath>
