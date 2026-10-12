@@ -1784,16 +1784,23 @@ class CrmLead(models.Model):
         self.ensure_one()
         code = self._stage_code(target_stage)
         current_code = self._stage_code(self.stage_id)
+        # Backward movement is permitted only as far as Contact Attempted.
+        # New/Assigned remain protected because moving a progressed lead back
+        # into either of those stages would bypass the assignment workflow.
+        # Keep this guard limited to pipeline drag/write validation; workflow
+        # actions and manager correction tools retain their existing behavior.
         if (
             current_code
-            and code
             and target_stage.sequence < self.stage_id.sequence
+            and code not in ("contact_attempted", "contacted", "not_interested",
+                             "meeting_scheduled", "meeting_completed", "forecast",
+                             "hot", "won")
         ):
             raise ValidationError(_(
                 "Leads cannot be moved backward from %(current)s to "
-                "%(target)s by dragging the pipeline card. Ask a Sales "
-                "Manager to use Correct Stage when a genuine correction "
-                "is required."
+                "%(target)s by dragging the pipeline card. Backward movement "
+                "is allowed only as far as Contact Attempted. Ask a Sales "
+                "Manager to use Correct Stage for an earlier correction."
             ) % {
                 "current": self.stage_id.display_name,
                 "target": target_stage.display_name,
