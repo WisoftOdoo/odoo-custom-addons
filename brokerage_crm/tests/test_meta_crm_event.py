@@ -27,7 +27,7 @@ class TestMetaCrmEvent(TransactionCase):
         parameters.set_param(
             "brokerage_crm.meta_crm_test_event_code", "TEST12345"
         )
-        cls.new_stage, cls.contacted_stage, cls.hot_stage = cls.env[
+        cls.new_stage, cls.contacted_stage, cls.meeting_stage, cls.hot_stage = cls.env[
             "crm.stage"
         ].create([
             {
@@ -39,6 +39,11 @@ class TestMetaCrmEvent(TransactionCase):
                 "name": "Meta Feedback Contacted",
                 "brokerage_code": "contacted",
                 "sequence": -490,
+            },
+            {
+                "name": "Meta Feedback Meeting Scheduled",
+                "brokerage_code": "meeting_scheduled",
+                "sequence": -485,
             },
             {
                 "name": "Meta Feedback Hot",
@@ -110,6 +115,18 @@ class TestMetaCrmEvent(TransactionCase):
         self.assertFalse(self.env["brokerage.meta.crm.event"].search([
             ("lead_id", "=", manual_lead.id),
         ]))
+
+    def test_meeting_scheduled_is_queued_as_qualified(self):
+        lead, _webhook = self._lead_and_webhook("1003")
+        lead.with_context(brokerage_workflow_action=True).write({
+            "stage_id": self.meeting_stage.id,
+        })
+
+        event = self.env["brokerage.meta.crm.event"].search([
+            ("lead_id", "=", lead.id),
+        ])
+        self.assertEqual(len(event), 1)
+        self.assertEqual(event.event_name, "QUALIFIED")
 
     def test_payload_uses_meta_lead_id_and_hashed_contact_data(self):
         lead, webhook = self._lead_and_webhook("1002")
