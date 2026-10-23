@@ -351,6 +351,7 @@ class CrmLeadMetaFeedback(models.Model):
 
     _META_STAGE_EVENTS = {
         "new": "CREATED",
+        "to_be_contacted": "UNQUALIFIED",
         "meeting_scheduled": "QUALIFIED",
         "hot": "QUALIFIED",
         "not_interested": "UNQUALIFIED",

@@ -1060,7 +1060,7 @@ class CrmLead(models.Model):
             )
 
         if stage and self._stage_code(stage) in (
-            "contact_attempted", "contacted", "not_interested"
+            "to_be_contacted", "contact_attempted", "contacted", "not_interested"
         ):
             self._clear_open_brokerage_sla_activities()
 
@@ -1701,6 +1701,7 @@ class CrmLead(models.Model):
         normalized = "_".join(normalized.split())
         aliases = {
             "new": "new", "new_lead": "new", "assigned": "assigned",
+            "to_be_contacted": "to_be_contacted",
             "contact_attempted": "contact_attempted", "contacted": "contacted",
             "meeting_scheduled": "meeting_scheduled",
             "meeting_completed": "meeting_completed", "forecast": "forecast",
@@ -1720,6 +1721,7 @@ class CrmLead(models.Model):
     def _compute_brokerage_next_action(self):
         action_by_stage = {
             "assigned": "contact_attempt",
+            "to_be_contacted": "contact_attempt",
             "contact_attempted": "contact_attempt",
             "contacted": "schedule_meeting",
             "meeting_scheduled": "complete_meeting",
@@ -1759,6 +1761,7 @@ class CrmLead(models.Model):
         if stage:
             return stage
         names = {
+            "to_be_contacted": "To be Contacted",
             "contact_attempted": "Contact Attempted",
             "contacted": "Contacted",
             "not_interested": "Not Interested",
@@ -1877,7 +1880,7 @@ class CrmLead(models.Model):
         if (
             current_code
             and target_stage.sequence < self.stage_id.sequence
-            and code not in ("contact_attempted", "contacted", "not_interested",
+            and code not in ("to_be_contacted", "contact_attempted", "contacted", "not_interested",
                              "meeting_scheduled", "meeting_completed", "forecast",
                              "hot", "won")
         ):

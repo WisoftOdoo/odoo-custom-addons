@@ -15,6 +15,14 @@
         <field name="sequence">20</field>
     </record>
 
+    <record id="lead_status_to_be_contacted"
+            model="brokerage.crm.lead.status">
+        <field name="name">To be Contacted</field>
+        <field name="code">to_be_contacted</field>
+        <field name="sequence">25</field>
+        <field name="is_contact_attempt">True</field>
+    </record>
+
     <record id="lead_status_calling"
             model="brokerage.crm.lead.status">
         <field name="name">Calling</field>

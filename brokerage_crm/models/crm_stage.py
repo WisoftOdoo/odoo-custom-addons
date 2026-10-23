@@ -8,6 +8,7 @@ class CrmStage(models.Model):
         selection=[
             ("new", "New Lead"),
             ("assigned", "Assigned"),
+            ("to_be_contacted", "To be Contacted"),
             ("contact_attempted", "Contact Attempted"),
             ("contacted", "Contacted"),
             ("not_interested", "Not Interested"),
