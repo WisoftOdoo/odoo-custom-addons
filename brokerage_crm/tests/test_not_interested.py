@@ -65,6 +65,38 @@ class TestNotInterestedReassignment(TransactionCase):
         cls.assigned_status = cls.env.ref(
             "brokerage_crm.lead_status_assigned"
         )
+        cls.to_be_contacted_status = cls.env.ref(
+            "brokerage_crm.lead_status_to_be_contacted"
+        )
+
+    def test_to_be_contacted_moves_to_dedicated_stage_without_reassignment(self):
+        stage = self.env["crm.stage"].create({
+            "name": "To be Contacted Test",
+            "brokerage_code": "to_be_contacted",
+            "team_ids": [(6, 0, self.teams.ids)],
+        })
+        lead = self.env["crm.lead"].create({
+            "name": "To be Contacted Lead",
+            "type": "opportunity",
+            "team_id": self.teams[0].id,
+            "user_id": self.agents[0].id,
+            "stage_id": self.assigned_stage.id,
+            "lead_status_id": self.assigned_status.id,
+        })
+
+        wizard = self.env[
+            "brokerage.crm.contact.attempt.wizard"
+        ].with_user(self.agents[0]).create({
+            "lead_id": lead.id,
+            "method": "call",
+            "status_id": self.to_be_contacted_status.id,
+        })
+        wizard.action_confirm()
+
+        self.assertEqual(lead.stage_id, stage)
+        self.assertEqual(lead.lead_status_id, self.to_be_contacted_status)
+        self.assertEqual(lead.user_id, self.agents[0])
+        self.assertEqual(len(lead.contact_attempt_ids), 1)
 
     def _record_not_interested(self, lead, remarks):
         wizard = self.env[

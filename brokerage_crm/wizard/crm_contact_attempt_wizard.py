@@ -161,11 +161,20 @@ class CrmContactAttemptWizard(models.TransientModel):
                 ).write(values)
         else:
             target_code = (
-                "contacted"
-                if self.status_id.is_successful_contact
-                else "contact_attempted"
+                "to_be_contacted"
+                if self.status_id.code == "to_be_contacted"
+                else (
+                    "contacted"
+                    if self.status_id.is_successful_contact
+                    else "contact_attempted"
+                )
             )
             target_stage = lead._find_brokerage_stage(target_code)
+            if self.status_id.code == "to_be_contacted" and not target_stage:
+                raise ValidationError(_(
+                    "Configure a To be Contacted CRM stage before using "
+                    "this contact result."
+                ))
             if target_stage:
                 lead._validate_brokerage_stage_move(target_stage)
                 values["stage_id"] = target_stage.id
