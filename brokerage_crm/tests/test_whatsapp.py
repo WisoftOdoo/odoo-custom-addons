@@ -147,6 +147,28 @@ class TestBrokerageWhatsApp(TransactionCase):
         self.assertFalse(notification.recipient_phone)
         self.assertEqual(notification.attempt_count, 0)
 
+    def test_bulk_manual_import_skips_assignment_whatsapp_only(self):
+        lead = self.env["crm.lead"].with_context(import_file=True).create({
+            "name": "Bulk Manual Import Lead",
+            "type": "opportunity",
+            "contact_name": "Bulk Import Customer",
+            "phone": "+971501112233",
+            "team_id": self.team.id,
+            "user_id": self.agent.id,
+            "assignment_type": "manual",
+        })
+
+        self.assertEqual(lead.assignment_type, "manual")
+        self.assertEqual(lead.team_id, self.team)
+        self.assertEqual(lead.user_id, self.agent)
+        self.assertEqual(len(lead.assignment_history_ids), 1)
+        self.assertFalse(self.env[
+            "brokerage.whatsapp.notification"
+        ].search([
+            ("lead_id", "=", lead.id),
+            ("notification_type", "=", "assignment"),
+        ]))
+
     def test_exponential_retry_terminal_alert_and_manual_retry(self):
         parameters = self.env["ir.config_parameter"].sudo()
         parameters.set_param(
