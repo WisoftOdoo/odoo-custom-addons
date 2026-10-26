@@ -16,7 +16,7 @@ def main():
     parser.add_argument("--name", help="Optional lead title")
     parser.add_argument("--customer-name", required=True)
     parser.add_argument("--phone", required=True)
-    parser.add_argument("--email", required=True)
+    parser.add_argument("--email")
     parser.add_argument("--source", required=True)
     parser.add_argument("--campaign")
     parser.add_argument("--medium")
