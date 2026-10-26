@@ -1198,6 +1198,18 @@ class CrmLead(models.Model):
             "before_snapshot": before_snapshot or False,
             "after_snapshot": self._brokerage_assignment_snapshot(),
         })
+        # Bulk historical/manual imports must not create one WhatsApp message
+        # per imported lead. Native Odoo imports provide ``import_file``;
+        # external bulk loaders can opt into the explicit context flag.
+        # Ordinary manual assignments retain the normal notification behavior.
+        if (
+            self.assignment_type == "manual"
+            and (
+                self.env.context.get("import_file")
+                or self.env.context.get("bulk_manual_import")
+            )
+        ):
+            return
         self._queue_brokerage_whatsapp_assignment(
             new_user,
             _("Direct assignment"),
