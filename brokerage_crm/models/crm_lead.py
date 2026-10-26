@@ -785,6 +785,13 @@ class CrmLead(models.Model):
                     company=company,
                 )
                 if duplicate or duplicate_key in batch_contact_keys:
+                    if import_file and vals.get("assignment_type") == "manual":
+                        vals["_brokerage_skip_bulk_duplicate"] = True
+                        _logger.info(
+                            "Skipping duplicate manual lead during bulk import: %s",
+                            vals.get("contact_name") or vals.get("name"),
+                        )
+                        continue
                     if duplicate:
                         detail = _(
                             "Existing lead: %(lead)s\nSalesperson: "
@@ -861,6 +868,10 @@ class CrmLead(models.Model):
             if vals.get("user_id"):
                 vals.setdefault("assigned_datetime", fields.Datetime.now())
 
+        vals_list = [
+            vals for vals in vals_list
+            if not vals.pop("_brokerage_skip_bulk_duplicate", False)
+        ]
         leads = super().create(vals_list)
         if import_file:
             self._brokerage_apply_imported_created_dates(

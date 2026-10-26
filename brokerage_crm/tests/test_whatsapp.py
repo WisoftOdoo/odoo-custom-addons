@@ -169,6 +169,31 @@ class TestBrokerageWhatsApp(TransactionCase):
             ("notification_type", "=", "assignment"),
         ]))
 
+    def test_bulk_manual_import_skips_duplicate_rows(self):
+        values = {
+            "name": "Bulk Duplicate Lead",
+            "type": "opportunity",
+            "contact_name": "Bulk Duplicate Customer",
+            "phone": "+971501112244",
+            "team_id": self.team.id,
+            "assignment_type": "manual",
+        }
+        imported = self.env["crm.lead"].with_context(
+            import_file=True,
+        ).create(values)
+        duplicate = self.env["crm.lead"].with_context(
+            import_file=True,
+        ).create(dict(values, name="Bulk Duplicate Row"))
+
+        self.assertTrue(imported)
+        self.assertFalse(duplicate)
+        self.assertEqual(
+            self.env["crm.lead"].search_count([
+                ("phone", "=", "+971501112244"),
+            ]),
+            1,
+        )
+
     def test_exponential_retry_terminal_alert_and_manual_retry(self):
         parameters = self.env["ir.config_parameter"].sudo()
         parameters.set_param(
