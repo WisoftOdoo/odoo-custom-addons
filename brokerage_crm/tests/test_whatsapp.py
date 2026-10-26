@@ -178,11 +178,15 @@ class TestBrokerageWhatsApp(TransactionCase):
             "team_id": self.team.id,
             "assignment_type": "manual",
         }
+        import_context = {
+            "import_file": True,
+            "default_type": "opportunity",
+        }
         imported = self.env["crm.lead"].with_context(
-            import_file=True,
+            **import_context,
         ).create(values)
         duplicate = self.env["crm.lead"].with_context(
-            import_file=True,
+            **import_context,
         ).create(dict(values, name="Bulk Duplicate Row"))
 
         self.assertTrue(imported)
