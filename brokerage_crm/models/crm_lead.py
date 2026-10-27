@@ -742,23 +742,28 @@ class CrmLead(models.Model):
                 vals.pop("create_date", None)
                 if not import_file or vals.get("assignment_type") != "manual":
                     vals.pop("brokerage_import_created_on", None)
-            imported_created_dates.append(
-                imported_created_on
-                if import_file and vals.get("assignment_type") == "manual"
-                else False
-            )
             # CRM screens and imports opened from CRM carry default_type.
             # Validate those human-facing creation routes on the server too,
             # while leaving low-level internal Odoo jobs able to create an
             # incomplete draft that can be enriched later. The public API has
             # the same rule in its controller before it reaches the ORM.
-            if manual_crm_creation:
+            bulk_manual_import = (
+                import_file and vals.get("assignment_type") == "manual"
+            )
+            if manual_crm_creation or bulk_manual_import:
                 partner = self.env["res.partner"].browse(
                     vals.get("partner_id")
                 ).exists()
                 email = vals.get("email_from") or partner.email
                 phone = vals.get("phone") or partner.phone
                 if not (email or phone):
+                    if bulk_manual_import:
+                        vals["_brokerage_skip_bulk_duplicate"] = True
+                        _logger.warning(
+                            "Skipping manual bulk lead without phone or email: %s",
+                            vals.get("contact_name") or vals.get("name"),
+                        )
+                        continue
                     raise ValidationError(_(
                         "Enter at least one customer contact detail: Phone "
                         "or Email."
@@ -772,6 +777,20 @@ class CrmLead(models.Model):
                     phone,
                     company,
                 )
+                # Invalid phone values can normalize to an empty identity even
+                # when the source cell is not blank. Never pass False to
+                # PostgreSQL's text-only hashtext() function.
+                if not duplicate_key:
+                    if bulk_manual_import:
+                        vals["_brokerage_skip_bulk_duplicate"] = True
+                        _logger.warning(
+                            "Skipping manual bulk lead with no valid phone/email: %s",
+                            vals.get("contact_name") or vals.get("name"),
+                        )
+                        continue
+                    raise ValidationError(_(
+                        "Enter a valid phone number or email address."
+                    ))
                 # Serialize manual submissions with API webhooks carrying the
                 # same customer identity, preventing a race-created duplicate.
                 self.env.cr.execute(
@@ -867,6 +886,9 @@ class CrmLead(models.Model):
             explicit_team_flags.append(bool(vals.get("team_id")))
             if vals.get("user_id"):
                 vals.setdefault("assigned_datetime", fields.Datetime.now())
+            imported_created_dates.append(
+                imported_created_on if bulk_manual_import else False
+            )
 
         vals_list = [
             vals for vals in vals_list
