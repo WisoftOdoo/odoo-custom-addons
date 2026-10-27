@@ -110,6 +110,36 @@ class TestBrokerageEmailNotification(TransactionCase):
         self.assertFalse(notification.mail_id)
         self.assertIn("no valid email", notification.failure_reason)
 
+    def test_bulk_manual_import_skips_assignment_email(self):
+        agent = self._user(
+            "Bulk Email Agent",
+            "bulk.email.agent@test.invalid",
+            "bulk.agent@example.com",
+        )
+        team = self.env["crm.team"].create({
+            "name": "Bulk Email Team",
+        })
+        lead = self.env["crm.lead"].with_context(
+            skip_assignment_history=True,
+            skip_round_robin=True,
+        ).create({
+            "name": "Bulk Email Lead",
+            "assignment_type": "manual",
+        })
+        history = self.env[
+            "brokerage.crm.assignment.history"
+        ].with_context(import_file=True).create({
+            "lead_id": lead.id,
+            "new_user_id": agent.id,
+            "new_team_id": team.id,
+            "assignment_type": "manual",
+            "reason": "Bulk import",
+        })
+
+        self.assertFalse(self.env[
+            "brokerage.crm.email.notification"
+        ].search([("assignment_history_id", "=", history.id)]))
+
     def test_sla_reminder_and_escalation_emails_are_queued(self):
         agent = self._user(
             "Email SLA Agent",
