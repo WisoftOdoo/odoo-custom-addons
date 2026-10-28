@@ -1059,7 +1059,13 @@ class CrmLead(models.Model):
         # status/stage write. The reassignment methods reset the new cycle's
         # status to Assigned when a recipient is found, exactly as the contact
         # attempt workflow does. No contact-attempt record is created here.
-        if direct_not_interested_reason:
+        # Not Interested reassignment is part of the Round Robin workflow
+        # only. Manual/imported leads remain with their current owner/team;
+        # their status, reason, and audit updates above are still preserved.
+        if (
+            direct_not_interested_reason
+            and self.assignment_type == "round_robin"
+        ):
             lead = self
             reassigned_user = False
             if lead.campaign_routing_policy_id:
