@@ -116,6 +116,7 @@ class TestNotInterestedReassignment(TransactionCase):
             "team_id": self.teams[0].id,
             "stage_id": self.assigned_stage.id,
             "lead_status_id": self.assigned_status.id,
+            "assignment_type": "manual",
         })
 
         with self.assertRaisesRegex(ValidationError, "Enter a reason"):
@@ -126,9 +127,9 @@ class TestNotInterestedReassignment(TransactionCase):
             "not_interested_reason": "Customer declined the offer",
         })
 
-        self.assertEqual(lead.stage_id, self.assigned_stage)
-        self.assertEqual(lead.lead_status_id, self.assigned_status)
-        self.assertTrue(lead.not_interested_reassignment_done)
+        self.assertEqual(lead.stage_id, self.not_interested_stage)
+        self.assertEqual(lead.lead_status_id, self.not_interested_status)
+        self.assertFalse(lead.not_interested_reassignment_done)
 
     def test_not_interested_reassigns_once_with_independent_queue(self):
         lead = self.env["crm.lead"].create({
@@ -138,6 +139,7 @@ class TestNotInterestedReassignment(TransactionCase):
             "user_id": self.agents[0].id,
             "stage_id": self.assigned_stage.id,
             "lead_status_id": self.assigned_status.id,
+            "assignment_type": "round_robin",
         })
         normal_state = [
             (rule.next_index, rule.assignment_count)
@@ -249,6 +251,7 @@ class TestNotInterestedReassignment(TransactionCase):
             "user_id": self.agents[0].id,
             "stage_id": self.assigned_stage.id,
             "lead_status_id": self.assigned_status.id,
+            "assignment_type": "round_robin",
         })
         normal_state = [
             (rule.next_index, rule.assignment_count)
@@ -327,6 +330,7 @@ class TestNotInterestedReassignment(TransactionCase):
             "user_id": self.agents[0].id,
             "stage_id": self.assigned_stage.id,
             "lead_status_id": self.assigned_status.id,
+            "assignment_type": "round_robin",
         })
 
         self._record_not_interested(
