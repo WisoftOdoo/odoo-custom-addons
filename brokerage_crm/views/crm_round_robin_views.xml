@@ -53,6 +53,11 @@
                             string="Reset Rotation"
                             class="btn-secondary"
                             confirm="Reset the Round Robin position?"/>
+                    <button name="action_reset_global_rotation"
+                            type="object"
+                            string="Reset Global Team Rotation"
+                            class="btn-secondary"
+                            confirm="Reset the global team rotation to the first configured team? Existing assignments and totals will not change."/>
                 </header>
 
                 <sheet>
