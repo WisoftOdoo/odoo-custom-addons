@@ -916,3 +916,29 @@ class CrmRoundRobin(models.Model):
             })
 
         return True
+
+    def action_reset_global_rotation(self):
+        """Start the normal team rotation from the first configured team.
+
+        This deliberately changes only the company-level next-team cursor.
+        Existing leads, assignment totals, and each team's salesperson cursor
+        remain unchanged.
+        """
+        for rule in self:
+            company = rule.team_id.company_id or self.env.company
+            configurations = self.sudo().search(
+                [
+                    ("active", "=", True),
+                    ("team_id.brokerage_solo_campaign", "=", False),
+                    "|",
+                    ("team_id.company_id", "=", False),
+                    ("team_id.company_id", "=", company.id),
+                ],
+                order="sequence, id",
+            )
+            company.sudo().write({
+                "brokerage_normal_rr_next_rule_id": (
+                    configurations[:1].id if configurations else False
+                ),
+            })
+        return True
