@@ -102,6 +102,24 @@ class ResConfigSettings(models.TransientModel):
         config_parameter="brokerage_crm.meta_crm_max_attempts",
         default=5,
     )
+    brokerage_external_conversion_enabled = fields.Boolean(
+        string="Enable External Meta Conversion Webhook",
+        config_parameter="brokerage_crm.external_conversion_enabled",
+    )
+    brokerage_external_conversion_url = fields.Char(
+        string="External Conversion Webhook URL",
+        config_parameter="brokerage_crm.external_conversion_url",
+    )
+    brokerage_external_conversion_test_mode = fields.Boolean(
+        string="External Conversion Test Mode",
+        config_parameter="brokerage_crm.external_conversion_test_mode",
+    )
+    brokerage_external_conversion_timeout = fields.Integer(
+        string="External Conversion Timeout", config_parameter="brokerage_crm.external_conversion_timeout", default=15,
+    )
+    brokerage_external_conversion_max_attempts = fields.Integer(
+        string="External Conversion Maximum Attempts", config_parameter="brokerage_crm.external_conversion_max_attempts", default=5,
+    )
 
     brokerage_telephony_provider_id = fields.Many2one(
         related="company_id.brokerage_telephony_provider_id",
@@ -387,12 +405,22 @@ class ResConfigSettings(models.TransientModel):
                 "Maximum Meta CRM delivery attempts must be positive."
             ))
 
+    def _validate_brokerage_external_conversion_settings(self):
+        self.ensure_one()
+        if not self.brokerage_external_conversion_enabled:
+            return
+        if not (self.brokerage_external_conversion_url or "").strip().startswith(("https://", "http://")):
+            raise ValidationError(_("Enter a valid external conversion webhook URL."))
+        if self.brokerage_external_conversion_timeout <= 0 or self.brokerage_external_conversion_max_attempts <= 0:
+            raise ValidationError(_("External conversion timeout and maximum attempts must be positive."))
+
     def set_values(self):
         for settings in self:
             settings._validate_brokerage_sla_timings()
             settings._validate_brokerage_lead_quality_aging()
             settings._validate_brokerage_meta_settings()
             settings._validate_brokerage_meta_crm_settings()
+            settings._validate_brokerage_external_conversion_settings()
             if not settings.brokerage_ultramsg_enabled:
                 continue
             instance_id = (
