@@ -138,6 +138,7 @@ class BrokerageMetaCrmEvent(models.Model):
         )
         if cron:
             cron.sudo()._trigger()
+        self.env["brokerage.meta.conversion.webhook"].sudo().enqueue_for_meta_event(event)
         return event
 
     @api.model

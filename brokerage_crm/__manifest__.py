@@ -73,6 +73,7 @@
         "data/mail_activity_reminder_cron.xml",
         "data/meta_webhook_cron.xml",
         "data/meta_crm_event_cron.xml",
+        "data/meta_conversion_webhook_cron.xml",
     ],
     "application": False,
     "installable": True,
