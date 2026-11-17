@@ -60,15 +60,15 @@ class ProfolioPullLead(models.Model):
         source = str(item.get("source") or "").strip().lower()
         if source not in ("bayut", "dubizzle"):
             _logger.warning("Skipping Profolio lead with unsupported source: %s", source)
-            return False
+            return "unsupported"
         campaign = self._campaign(source)
         if not campaign:
             _logger.warning("Profolio %s lead skipped: default campaign is missing", source)
-            return False
+            return "missing_campaign"
         utm_source = self._source(source)
         external_id = str(item.get("lead_id") or "").strip()
         if not external_id or self.sudo().search_count([("external_lead_id", "=", external_id), ("source", "=", source)]):
-            return False
+            return "duplicate"
         details = item.get("inquirer_details") or {}
         listing = item.get("listing_details") or {}
         name = str(details.get("name") or "Profolio Lead %s" % external_id)
@@ -97,7 +97,7 @@ class ProfolioPullLead(models.Model):
             "crm_lead_id": lead.id,
             "response_payload": json.dumps(item, ensure_ascii=False)[:12000],
         })
-        return True
+        return "imported"
 
     @api.model
     def _pull_unified(self):
@@ -120,6 +120,7 @@ class ProfolioPullLead(models.Model):
         ).strftime("%Y-%m-%d %H:%M:%S")
         latest = timestamp
         request_number = 0
+        api_items = imported = duplicates = unsupported = missing_campaign = 0
         for target in ("listing", "agent", "agency"):
             for lead_type in ("email", "whatsapp", "sms", "phone"):
                 if request_number:
@@ -142,10 +143,19 @@ class ProfolioPullLead(models.Model):
                 response.raise_for_status()
                 items = response.json() or []
                 for item in items:
-                    self._import_item(item)
+                    api_items += 1
+                    result = self._import_item(item)
+                    imported += result == "imported"
+                    duplicates += result == "duplicate"
+                    unsupported += result == "unsupported"
+                    missing_campaign += result == "missing_campaign"
                     latest = max(latest, str(item.get("date_time") or latest))
         self.env["ir.config_parameter"].sudo().set_param("brokerage_crm.profolio_unified_last_timestamp", latest)
         self.env["ir.config_parameter"].sudo().set_param("brokerage_crm.%s" % retry_key, "")
+        _logger.info(
+            "Profolio unified pull completed: api_calls=%s, api_leads=%s, imported=%s, duplicates=%s, unsupported=%s, missing_campaign=%s",
+            request_number, api_items, imported, duplicates, unsupported, missing_campaign,
+        )
 
     @api.model
     def _cron_pull_leads(self):
