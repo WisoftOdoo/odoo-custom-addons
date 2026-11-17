@@ -64,6 +64,12 @@ class ProfolioPullLead(models.Model):
         details = item.get("inquirer_details") or {}
         listing = item.get("listing_details") or {}
         name = str(details.get("name") or "Profolio Lead %s" % external_id)
+        policy = self.env["brokerage.meta.campaign.rule"].sudo().policy_for_utm_campaign(
+            campaign, self.env.company,
+        )
+        assignment_type = self._param("profolio_default_assignment_type", "manual")
+        if policy:
+            assignment_type = "manual" if policy.routing_mode == "manual" else "round_robin"
         values = {
             "name": name,
             "contact_name": details.get("name") or False,
@@ -72,7 +78,7 @@ class ProfolioPullLead(models.Model):
             "description": details.get("message") or False,
             "source_id": utm_source.id,
             "campaign_id": campaign.id or False,
-            "assignment_type": self._param("profolio_default_assignment_type", "manual"),
+            "assignment_type": assignment_type,
         }
         if listing:
             values["description"] = "%s\n\nListing: %s (%s)" % (values["description"] or "", listing.get("listing_reference") or "", listing.get("listing_id") or "")
