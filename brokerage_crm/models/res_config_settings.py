@@ -120,6 +120,10 @@ class ResConfigSettings(models.TransientModel):
     brokerage_external_conversion_max_attempts = fields.Integer(
         string="External Conversion Maximum Attempts", config_parameter="brokerage_crm.external_conversion_max_attempts", default=5,
     )
+    brokerage_profolio_pull_enabled = fields.Boolean(string="Enable Bayut/dubizzle Pull API", config_parameter="brokerage_crm.profolio_pull_enabled")
+    brokerage_profolio_bayut_api_key = fields.Char(string="Bayut Pull API Key", config_parameter="brokerage_crm.profolio_bayut_api_key", copy=False)
+    brokerage_profolio_dubizzle_api_key = fields.Char(string="dubizzle Pull API Key", config_parameter="brokerage_crm.profolio_dubizzle_api_key", copy=False)
+    brokerage_profolio_default_assignment_type = fields.Selection([("manual", "Manual"), ("round_robin", "Round Robin")], string="Default Assignment", config_parameter="brokerage_crm.profolio_default_assignment_type", default="manual")
 
     brokerage_telephony_provider_id = fields.Many2one(
         related="company_id.brokerage_telephony_provider_id",

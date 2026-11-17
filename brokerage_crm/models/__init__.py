@@ -16,6 +16,7 @@ from . import meta_webhook_event
 from . import meta_campaign_rule
 from . import meta_crm_event
 from . import meta_conversion_webhook
+from . import profolio_pull
 from . import crm_booking_master
 from . import crm_contact_attempt
 from . import crm_meeting
