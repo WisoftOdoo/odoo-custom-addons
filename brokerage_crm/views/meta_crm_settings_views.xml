@@ -139,8 +139,9 @@
                                 <field name="brokerage_profolio_default_assignment_type" class="oe_inline"/>
                             </div>
                             <div class="text-muted mt8">
-                                Imported leads use the separate Bayut Leads or dubizzle Leads campaign.
-                                The scheduled job runs every 5 minutes and imports only real leads, not views.
+                                Active Campaign Routing Policies determine Manual or Round Robin assignment.
+                                This setting is used only when no policy exists. The scheduled job runs every
+                                5 minutes and imports only real leads, not views.
                             </div>
                         </div>
                     </setting>
