@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from datetime import datetime, timedelta
 
 import requests
@@ -134,6 +135,9 @@ class ProfolioPullLead(models.Model):
                 for item in items:
                     self._import_item(item, source, campaign, self._source(source))
                     latest = max(latest, str(item.get("date_time") or latest))
+                # The provider rate-limits by token. Spread the 12 requests per
+                # source instead of sending them as one burst.
+                time.sleep(1)
         self.env["ir.config_parameter"].sudo().set_param("brokerage_crm.profolio_%s_last_timestamp" % source, latest)
         self.env["ir.config_parameter"].sudo().set_param("brokerage_crm.%s" % retry_key, "")
 
