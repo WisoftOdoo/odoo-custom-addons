@@ -121,6 +121,29 @@
                             </div>
                         </div>
                     </setting>
+                    <setting id="brokerage_profolio_pull_enabled"
+                             string="Pull Bayut/dubizzle Leads"
+                             help="Import real leads from the documented Profolio v7 Pull API. This is independent from Meta and disabled until enabled here.">
+                        <field name="brokerage_profolio_pull_enabled"/>
+                        <div class="content-group mt16" invisible="not brokerage_profolio_pull_enabled">
+                            <div class="row mt8">
+                                <label for="brokerage_profolio_bayut_api_key" class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_profolio_bayut_api_key" class="oe_inline" password="True"/>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_profolio_dubizzle_api_key" class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_profolio_dubizzle_api_key" class="oe_inline" password="True"/>
+                            </div>
+                            <div class="row mt8">
+                                <label for="brokerage_profolio_default_assignment_type" class="col-lg-4 o_light_label"/>
+                                <field name="brokerage_profolio_default_assignment_type" class="oe_inline"/>
+                            </div>
+                            <div class="text-muted mt8">
+                                Imported leads use the separate Bayut Leads or dubizzle Leads campaign.
+                                The scheduled job runs every 5 minutes and imports only real leads, not views.
+                            </div>
+                        </div>
+                    </setting>
                 </block>
             </xpath>
         </field>
