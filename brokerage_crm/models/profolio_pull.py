@@ -93,6 +93,15 @@ class ProfolioPullLead(models.Model):
 
     @api.model
     def _pull_source(self, source):
+        retry_key = "profolio_%s_retry_until" % source
+        retry_until = self._param(retry_key, "")
+        if retry_until:
+            try:
+                if datetime.utcnow() < datetime.strptime(retry_until, "%Y-%m-%d %H:%M:%S"):
+                    _logger.info("Profolio %s pull paused until %s", source, retry_until)
+                    return
+            except ValueError:
+                self.env["ir.config_parameter"].sudo().set_param("brokerage_crm.%s" % retry_key, "")
         token = str(self._param("profolio_%s_api_key" % source, "") or "").strip()
         if not token:
             _logger.warning("Profolio %s pull is enabled but its API key is missing", source)
@@ -109,7 +118,16 @@ class ProfolioPullLead(models.Model):
                 params = {"timestamp": timestamp, "target": target, "type": lead_type, "is_trulead": 1}
                 response = requests.get(self._endpoint(source), params=params, headers=headers, timeout=(5, 15))
                 if response.status_code == 429:
-                    _logger.warning("Profolio %s rate limited: %s", source, response.json().get("retry_after"))
+                    try:
+                        retry_after = max(60, int((response.json() or {}).get("retry_after", 60)))
+                    except (TypeError, ValueError, json.JSONDecodeError):
+                        retry_after = 60
+                    retry_until = datetime.utcnow() + timedelta(seconds=retry_after)
+                    self.env["ir.config_parameter"].sudo().set_param(
+                        "brokerage_crm.%s" % retry_key,
+                        retry_until.strftime("%Y-%m-%d %H:%M:%S"),
+                    )
+                    _logger.warning("Profolio %s rate limited; retrying after %s seconds", source, retry_after)
                     return
                 response.raise_for_status()
                 items = response.json() or []
@@ -117,6 +135,7 @@ class ProfolioPullLead(models.Model):
                     self._import_item(item, source, campaign, self._source(source))
                     latest = max(latest, str(item.get("date_time") or latest))
         self.env["ir.config_parameter"].sudo().set_param("brokerage_crm.profolio_%s_last_timestamp" % source, latest)
+        self.env["ir.config_parameter"].sudo().set_param("brokerage_crm.%s" % retry_key, "")
 
     @api.model
     def _cron_pull_leads(self):
