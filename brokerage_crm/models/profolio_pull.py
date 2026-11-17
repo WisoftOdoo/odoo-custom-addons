@@ -52,13 +52,20 @@ class ProfolioPullLead(models.Model):
         return (datetime.utcnow() - timedelta(minutes=15)).strftime("%Y-%m-%d %H:%M:%S")
 
     @api.model
-    def _endpoint(self, source):
-        if source == "bayut":
-            return "https://www.bayut.com/api-v7/stats/website-client-leads"
-        return "https://dubizzle.com/profolio/api-v7/stats/website-client-leads"
+    def _endpoint(self):
+        return "https://www.bayut.com/api-v7/stats/website-client-leads"
 
     @api.model
-    def _import_item(self, item, source, campaign, utm_source):
+    def _import_item(self, item):
+        source = str(item.get("source") or "").strip().lower()
+        if source not in ("bayut", "dubizzle"):
+            _logger.warning("Skipping Profolio lead with unsupported source: %s", source)
+            return False
+        campaign = self._campaign(source)
+        if not campaign:
+            _logger.warning("Profolio %s lead skipped: default campaign is missing", source)
+            return False
+        utm_source = self._source(source)
         external_id = str(item.get("lead_id") or "").strip()
         if not external_id or self.sudo().search_count([("external_lead_id", "=", external_id), ("source", "=", source)]):
             return False
@@ -93,31 +100,33 @@ class ProfolioPullLead(models.Model):
         return True
 
     @api.model
-    def _pull_source(self, source):
-        retry_key = "profolio_%s_retry_until" % source
+    def _pull_unified(self):
+        retry_key = "profolio_unified_retry_until"
         retry_until = self._param(retry_key, "")
         if retry_until:
             try:
                 if datetime.utcnow() < datetime.strptime(retry_until, "%Y-%m-%d %H:%M:%S"):
-                    _logger.info("Profolio %s pull paused until %s", source, retry_until)
+                    _logger.info("Profolio unified pull paused until %s", retry_until)
                     return
             except ValueError:
                 self.env["ir.config_parameter"].sudo().set_param("brokerage_crm.%s" % retry_key, "")
-        token = str(self._param("profolio_%s_api_key" % source, "") or "").strip()
+        token = str(self._param("profolio_bayut_api_key", "") or "").strip()
         if not token:
-            _logger.warning("Profolio %s pull is enabled but its API key is missing", source)
-            return
-        campaign = self._campaign(source)
-        if not campaign:
-            _logger.warning("Profolio %s pull skipped: default campaign is missing", source)
+            _logger.warning("Profolio unified pull is enabled but its API key is missing")
             return
         headers = {"Authorization": "Bearer %s" % token, "Accept": "application/json"}
-        timestamp = self._timestamp(source)
+        timestamp = self._param("profolio_unified_last_timestamp", "") or (
+            datetime.utcnow() - timedelta(minutes=15)
+        ).strftime("%Y-%m-%d %H:%M:%S")
         latest = timestamp
+        request_number = 0
         for target in ("listing", "agent", "agency"):
             for lead_type in ("email", "whatsapp", "sms", "phone"):
+                if request_number:
+                    time.sleep(60)
+                request_number += 1
                 params = {"timestamp": timestamp, "target": target, "type": lead_type, "is_trulead": 1}
-                response = requests.get(self._endpoint(source), params=params, headers=headers, timeout=(5, 15))
+                response = requests.get(self._endpoint(), params=params, headers=headers, timeout=(5, 30))
                 if response.status_code == 429:
                     try:
                         retry_after = max(60, int((response.json() or {}).get("retry_after", 60)))
@@ -128,27 +137,23 @@ class ProfolioPullLead(models.Model):
                         "brokerage_crm.%s" % retry_key,
                         retry_until.strftime("%Y-%m-%d %H:%M:%S"),
                     )
-                    _logger.warning("Profolio %s rate limited; retrying after %s seconds", source, retry_after)
+                    _logger.warning("Profolio unified pull rate limited; retrying after %s seconds", retry_after)
                     return
                 response.raise_for_status()
                 items = response.json() or []
                 for item in items:
-                    self._import_item(item, source, campaign, self._source(source))
+                    self._import_item(item)
                     latest = max(latest, str(item.get("date_time") or latest))
-                # The provider rate-limits by token. Spread the 12 requests per
-                # source instead of sending them as one burst.
-                time.sleep(1)
-        self.env["ir.config_parameter"].sudo().set_param("brokerage_crm.profolio_%s_last_timestamp" % source, latest)
+        self.env["ir.config_parameter"].sudo().set_param("brokerage_crm.profolio_unified_last_timestamp", latest)
         self.env["ir.config_parameter"].sudo().set_param("brokerage_crm.%s" % retry_key, "")
 
     @api.model
     def _cron_pull_leads(self):
         if not self._enabled():
             return True
-        for source in ("bayut", "dubizzle"):
-            try:
-                with self.env.cr.savepoint():
-                    self._pull_source(source)
-            except Exception:
-                _logger.exception("Profolio %s lead pull failed", source)
+        try:
+            with self.env.cr.savepoint():
+                self._pull_unified()
+        except Exception:
+            _logger.exception("Profolio unified lead pull failed")
         return True
