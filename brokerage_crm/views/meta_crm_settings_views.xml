@@ -141,7 +141,7 @@
                             <div class="text-muted mt8">
                                 Active Campaign Routing Policies determine Manual or Round Robin assignment.
                                 This setting is used only when no policy exists. The scheduled job runs every
-                                5 minutes and imports only real leads, not views.
+                                10 minutes and imports only real leads, not views.
                             </div>
                         </div>
                     </setting>
