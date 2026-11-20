@@ -1256,6 +1256,8 @@ class CrmLead(models.Model):
 
     def _queue_brokerage_whatsapp_assignment(self, user, reason=None):
         self.ensure_one()
+        if self.assignment_type == "manual":
+            return self.env["brokerage.whatsapp.notification"]
         if not user:
             return self.env["brokerage.whatsapp.notification"]
         try:
