@@ -194,15 +194,10 @@ class BrokerageCrmAssignmentHistory(models.Model):
                 or history.new_user_id.share
             ):
                 continue
-            # Historical/manual bulk imports keep the assignment audit trail,
-            # but must not send one new-lead email per imported row. Ordinary
-            # assignments retain the existing email notification behavior.
+            # Manual leads keep the assignment audit trail, but do not send
+            # assignment emails. Round Robin assignments retain email alerts.
             if (
                 history.lead_id.assignment_type == "manual"
-                and (
-                    self.env.context.get("import_file")
-                    or self.env.context.get("bulk_manual_import")
-                )
             ):
                 continue
             try:
