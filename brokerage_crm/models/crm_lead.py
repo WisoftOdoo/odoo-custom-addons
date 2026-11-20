@@ -714,6 +714,44 @@ class CrmLead(models.Model):
         "not_interested_reassignment_done",
     )
 
+    @api.model
+    def load(self, fields, data):
+        """Filter manual duplicates before Odoo builds import result rows."""
+        if not self.env.context.get("import_file"):
+            return super().load(fields, data)
+        field_index = {name: index for index, name in enumerate(fields)}
+        assignment_index = field_index.get("assignment_type")
+        if assignment_index is None:
+            return super().load(fields, data)
+        filtered_data = []
+        seen_keys = set()
+        for row in data:
+            assignment = str(row[assignment_index] or "").strip().lower()
+            if assignment not in ("manual", ""):
+                filtered_data.append(row)
+                continue
+            email = row[field_index["email_from"]] if "email_from" in field_index else (
+                row[field_index["email"]] if "email" in field_index else ""
+            )
+            phone = row[field_index["phone"]] if "phone" in field_index else ""
+            name = row[field_index["contact_name"]] if "contact_name" in field_index else (
+                row[field_index["name"]] if "name" in field_index else ""
+            )
+            duplicate_key = self._brokerage_build_deduplication_key(
+                name, email, phone, self.env.company,
+            )
+            if not duplicate_key:
+                _logger.warning("Skipping manual import row without valid phone/email: %s", name)
+                continue
+            if duplicate_key in seen_keys or self._brokerage_find_duplicate_by_contact(
+                email, phone, duplicate_key=duplicate_key, company=self.env.company,
+            ):
+                _logger.info("Skipping duplicate manual import row: %s", name)
+                continue
+            seen_keys.add(duplicate_key)
+            filtered_data.append(row)
+        return super().load(fields, filtered_data)
+
     @api.model_create_multi
     def create(self, vals_list):
         # The standard ``create_date`` audit field is hidden by Odoo's import
