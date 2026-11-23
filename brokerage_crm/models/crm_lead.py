@@ -723,8 +723,13 @@ class CrmLead(models.Model):
         assignment_index = field_index.get("assignment_type")
         if assignment_index is None:
             return super().load(fields, data)
+        # Build the identity keys first, then look up existing leads in
+        # batches.  Searching once per import row makes the synchronous Odoo
+        # import request time out on larger spreadsheets.
+        manual_rows = []
         filtered_data = []
         seen_keys = set()
+        candidate_keys = set()
         for row in data:
             assignment = str(row[assignment_index] or "").strip().lower()
             if assignment not in ("manual", ""):
@@ -743,12 +748,28 @@ class CrmLead(models.Model):
             if not duplicate_key:
                 _logger.warning("Skipping manual import row without valid phone/email: %s", name)
                 continue
-            if duplicate_key in seen_keys or self._brokerage_find_duplicate_by_contact(
-                email, phone, duplicate_key=duplicate_key, company=self.env.company,
-            ):
+            if duplicate_key in seen_keys:
                 _logger.info("Skipping duplicate manual import row: %s", name)
                 continue
             seen_keys.add(duplicate_key)
+            manual_rows.append((row, duplicate_key, name))
+            candidate_keys.add(duplicate_key)
+
+        existing_keys = set()
+        lead_model = self.sudo().with_context(active_test=False)
+        candidate_keys = list(candidate_keys)
+        for offset in range(0, len(candidate_keys), 1000):
+            batch_keys = candidate_keys[offset:offset + 1000]
+            existing_keys.update(
+                lead_model.search(
+                    [("brokerage_deduplication_key", "in", batch_keys)]
+                ).mapped("brokerage_deduplication_key")
+            )
+
+        for row, duplicate_key, name in manual_rows:
+            if duplicate_key in existing_keys:
+                _logger.info("Skipping duplicate manual import row: %s", name)
+                continue
             filtered_data.append(row)
         return super().load(fields, filtered_data)
 
