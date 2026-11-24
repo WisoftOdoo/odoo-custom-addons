@@ -1011,7 +1011,7 @@ class CrmLead(models.Model):
                 reason = vals.get(
                     "not_interested_reason",
                     self.not_interested_reason,
-                )
+                ) or self.not_interested_reason
                 if not (reason or "").strip():
                     raise ValidationError(_(
                         "Enter a reason before setting the Lead Status to "
