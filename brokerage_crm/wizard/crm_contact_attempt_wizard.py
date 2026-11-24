@@ -81,6 +81,15 @@ class CrmContactAttemptWizard(models.TransientModel):
 
         lead = self.lead_id
 
+        if not lead.active:
+            raise ValidationError(
+                _(
+                    "This lead is Lost and cannot receive new contact "
+                    "attempts or follow-up activities. Reopen the lead first "
+                    "if it should be worked again."
+                )
+            )
+
         if not lead.user_id:
             raise ValidationError(
                 _("Assign a salesperson before recording an attempt.")
