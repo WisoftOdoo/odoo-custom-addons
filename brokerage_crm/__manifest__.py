@@ -31,6 +31,7 @@
         "data/crm_activity_data.xml",
         "data/email_notification_data.xml",
         "data/crm_sla_rule_data.xml",
+        "data/crm_lost_reason_data.xml",
         "data/telephony_data.xml",
         "data/crm_round_robin_data.xml",
 
