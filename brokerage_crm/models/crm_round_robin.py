@@ -735,6 +735,8 @@ class CrmRoundRobin(models.Model):
     def assign_lead_not_interested_once(self, lead, reason=None):
         """Hand off once inside the team, then fall back across teams."""
         lead.ensure_one()
+        if not lead.active:
+            return self.env["res.users"]
         assigned_by = self.env.user
         lead_sudo = lead.sudo()
 

@@ -984,6 +984,10 @@ class CrmLead(models.Model):
         return leads
 
     def write(self, vals):
+        closing_as_lost = vals.get("active") is False
+        if closing_as_lost:
+            vals = dict(vals)
+            vals["sla_cycle_active"] = False
         # A direct status change from the lead form to Not Interested must
         # include a reason and move the lead to the matching CRM stage. Keep
         # workflow actions, imports, and all other statuses unchanged.
@@ -995,6 +999,11 @@ class CrmLead(models.Model):
             and vals.get("lead_status_id")
             and "stage_id" not in vals
         ):
+            if not self.active:
+                raise ValidationError(_(
+                    "This Lost lead cannot receive a new status update. "
+                    "Reopen it first if it should be worked again."
+                ))
             selected_status = self.env[
                 "brokerage.crm.lead.status"
             ].browse(vals["lead_status_id"]).exists()
@@ -1113,6 +1122,9 @@ class CrmLead(models.Model):
             vals.pop("user_id", None)
 
         result = super().write(vals)
+
+        if closing_as_lost:
+            self._stop_brokerage_workflows_on_loss()
 
         # Reuse the existing Not Interested reassignment paths after the
         # status/stage write. The reassignment methods reset the new cycle's
@@ -2375,6 +2387,22 @@ class CrmLead(models.Model):
         activities = self.env["mail.activity"].search([
             ("res_model", "=", "crm.lead"),
             ("res_id", "in", self.ids),
+            ("summary", "ilike", "SLA "),
+        ])
+        activities.unlink()
+
+    def _stop_brokerage_workflows_on_loss(self):
+        """Stop automated work when a lead is marked Lost.
+
+        Keep contact-attempt and assignment history records intact. Only
+        remove open CRM follow-up activities created by this module and SLA
+        activities, so a Lost lead cannot continue generating workflow work.
+        """
+        activities = self.env["mail.activity"].search([
+            ("res_model", "=", "crm.lead"),
+            ("res_id", "in", self.ids),
+            "|",
+            ("brokerage_reminder_datetime", "!=", False),
             ("summary", "ilike", "SLA "),
         ])
         activities.unlink()

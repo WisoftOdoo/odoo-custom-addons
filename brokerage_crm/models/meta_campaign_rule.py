@@ -340,6 +340,8 @@ class BrokerageCampaignRoutingPolicy(models.Model):
         return self._try_reassignment(lead, "sla", reason or _("Campaign SLA reassignment"))
 
     def reassign_not_interested_once(self, lead, reason=None):
+        if not lead.active:
+            return self.env["res.users"]
         self.env.cr.execute("SELECT id FROM crm_lead WHERE id=%s FOR UPDATE", [lead.id])
         lead.invalidate_recordset(["not_interested_reassignment_done"])
         if lead.not_interested_reassignment_done:
