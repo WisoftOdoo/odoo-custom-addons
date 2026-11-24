@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="lost_reason_customer_not_interested" model="crm.lost.reason">
+        <field name="name">Customer Not Interested</field>
+    </record>
+</odoo>
